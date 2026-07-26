@@ -22,6 +22,7 @@ import { Route as ShellNotificationsRouteImport } from './routes/_shell.notifica
 import { Route as ShellFilesRouteImport } from './routes/_shell.files'
 import { Route as ShellDashboardRouteImport } from './routes/_shell.dashboard'
 import { Route as ShellAuditLogRouteImport } from './routes/_shell.audit-log'
+import { Route as ShellAdminRouteImport } from './routes/_shell.admin'
 import { Route as ShellWorkflowsIndexRouteImport } from './routes/_shell.workflows.index'
 import { Route as ShellTasksIndexRouteImport } from './routes/_shell.tasks.index'
 import { Route as ShellDashboardIndexRouteImport } from './routes/_shell.dashboard.index'
@@ -29,6 +30,10 @@ import { Route as ShellWorkflowsBuilderRouteImport } from './routes/_shell.workf
 import { Route as ShellTasksIdRouteImport } from './routes/_shell.tasks.$id'
 import { Route as ShellDashboardTeamLeadRouteImport } from './routes/_shell.dashboard.team-lead'
 import { Route as ShellDashboardAdminRouteImport } from './routes/_shell.dashboard.admin'
+import { Route as ShellAdminRolesRouteImport } from './routes/_shell.admin.roles'
+import { Route as ShellAdminEmployeesRouteImport } from './routes/_shell.admin.employees'
+import { Route as ShellAdminDepartmentsRouteImport } from './routes/_shell.admin.departments'
+import { Route as ShellAdminBrandsRouteImport } from './routes/_shell.admin.brands'
 
 const WorkspaceRoute = WorkspaceRouteImport.update({
   id: '/workspace',
@@ -94,6 +99,11 @@ const ShellAuditLogRoute = ShellAuditLogRouteImport.update({
   path: '/audit-log',
   getParentRoute: () => ShellRoute,
 } as any)
+const ShellAdminRoute = ShellAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => ShellRoute,
+} as any)
 const ShellWorkflowsIndexRoute = ShellWorkflowsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -129,11 +139,32 @@ const ShellDashboardAdminRoute = ShellDashboardAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => ShellDashboardRoute,
 } as any)
+const ShellAdminRolesRoute = ShellAdminRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => ShellAdminRoute,
+} as any)
+const ShellAdminEmployeesRoute = ShellAdminEmployeesRouteImport.update({
+  id: '/employees',
+  path: '/employees',
+  getParentRoute: () => ShellAdminRoute,
+} as any)
+const ShellAdminDepartmentsRoute = ShellAdminDepartmentsRouteImport.update({
+  id: '/departments',
+  path: '/departments',
+  getParentRoute: () => ShellAdminRoute,
+} as any)
+const ShellAdminBrandsRoute = ShellAdminBrandsRouteImport.update({
+  id: '/brands',
+  path: '/brands',
+  getParentRoute: () => ShellAdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/workspace': typeof WorkspaceRoute
+  '/admin': typeof ShellAdminRouteWithChildren
   '/audit-log': typeof ShellAuditLogRoute
   '/dashboard': typeof ShellDashboardRouteWithChildren
   '/files': typeof ShellFilesRoute
@@ -143,6 +174,10 @@ export interface FileRoutesByFullPath {
   '/team-queue': typeof ShellTeamQueueRoute
   '/week-plan': typeof ShellWeekPlanRoute
   '/workflows': typeof ShellWorkflowsRouteWithChildren
+  '/admin/brands': typeof ShellAdminBrandsRoute
+  '/admin/departments': typeof ShellAdminDepartmentsRoute
+  '/admin/employees': typeof ShellAdminEmployeesRoute
+  '/admin/roles': typeof ShellAdminRolesRoute
   '/dashboard/admin': typeof ShellDashboardAdminRoute
   '/dashboard/team-lead': typeof ShellDashboardTeamLeadRoute
   '/tasks/$id': typeof ShellTasksIdRoute
@@ -155,12 +190,17 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/workspace': typeof WorkspaceRoute
+  '/admin': typeof ShellAdminRouteWithChildren
   '/audit-log': typeof ShellAuditLogRoute
   '/files': typeof ShellFilesRoute
   '/notifications': typeof ShellNotificationsRoute
   '/reports': typeof ShellReportsRoute
   '/team-queue': typeof ShellTeamQueueRoute
   '/week-plan': typeof ShellWeekPlanRoute
+  '/admin/brands': typeof ShellAdminBrandsRoute
+  '/admin/departments': typeof ShellAdminDepartmentsRoute
+  '/admin/employees': typeof ShellAdminEmployeesRoute
+  '/admin/roles': typeof ShellAdminRolesRoute
   '/dashboard/admin': typeof ShellDashboardAdminRoute
   '/dashboard/team-lead': typeof ShellDashboardTeamLeadRoute
   '/tasks/$id': typeof ShellTasksIdRoute
@@ -175,6 +215,7 @@ export interface FileRoutesById {
   '/_shell': typeof ShellRouteWithChildren
   '/login': typeof LoginRoute
   '/workspace': typeof WorkspaceRoute
+  '/_shell/admin': typeof ShellAdminRouteWithChildren
   '/_shell/audit-log': typeof ShellAuditLogRoute
   '/_shell/dashboard': typeof ShellDashboardRouteWithChildren
   '/_shell/files': typeof ShellFilesRoute
@@ -184,6 +225,10 @@ export interface FileRoutesById {
   '/_shell/team-queue': typeof ShellTeamQueueRoute
   '/_shell/week-plan': typeof ShellWeekPlanRoute
   '/_shell/workflows': typeof ShellWorkflowsRouteWithChildren
+  '/_shell/admin/brands': typeof ShellAdminBrandsRoute
+  '/_shell/admin/departments': typeof ShellAdminDepartmentsRoute
+  '/_shell/admin/employees': typeof ShellAdminEmployeesRoute
+  '/_shell/admin/roles': typeof ShellAdminRolesRoute
   '/_shell/dashboard/admin': typeof ShellDashboardAdminRoute
   '/_shell/dashboard/team-lead': typeof ShellDashboardTeamLeadRoute
   '/_shell/tasks/$id': typeof ShellTasksIdRoute
@@ -198,6 +243,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/workspace'
+    | '/admin'
     | '/audit-log'
     | '/dashboard'
     | '/files'
@@ -207,6 +253,10 @@ export interface FileRouteTypes {
     | '/team-queue'
     | '/week-plan'
     | '/workflows'
+    | '/admin/brands'
+    | '/admin/departments'
+    | '/admin/employees'
+    | '/admin/roles'
     | '/dashboard/admin'
     | '/dashboard/team-lead'
     | '/tasks/$id'
@@ -219,12 +269,17 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/workspace'
+    | '/admin'
     | '/audit-log'
     | '/files'
     | '/notifications'
     | '/reports'
     | '/team-queue'
     | '/week-plan'
+    | '/admin/brands'
+    | '/admin/departments'
+    | '/admin/employees'
+    | '/admin/roles'
     | '/dashboard/admin'
     | '/dashboard/team-lead'
     | '/tasks/$id'
@@ -238,6 +293,7 @@ export interface FileRouteTypes {
     | '/_shell'
     | '/login'
     | '/workspace'
+    | '/_shell/admin'
     | '/_shell/audit-log'
     | '/_shell/dashboard'
     | '/_shell/files'
@@ -247,6 +303,10 @@ export interface FileRouteTypes {
     | '/_shell/team-queue'
     | '/_shell/week-plan'
     | '/_shell/workflows'
+    | '/_shell/admin/brands'
+    | '/_shell/admin/departments'
+    | '/_shell/admin/employees'
+    | '/_shell/admin/roles'
     | '/_shell/dashboard/admin'
     | '/_shell/dashboard/team-lead'
     | '/_shell/tasks/$id'
@@ -356,6 +416,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellAuditLogRouteImport
       parentRoute: typeof ShellRoute
     }
+    '/_shell/admin': {
+      id: '/_shell/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof ShellAdminRouteImport
+      parentRoute: typeof ShellRoute
+    }
     '/_shell/workflows/': {
       id: '/_shell/workflows/'
       path: '/'
@@ -405,8 +472,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellDashboardAdminRouteImport
       parentRoute: typeof ShellDashboardRoute
     }
+    '/_shell/admin/roles': {
+      id: '/_shell/admin/roles'
+      path: '/roles'
+      fullPath: '/admin/roles'
+      preLoaderRoute: typeof ShellAdminRolesRouteImport
+      parentRoute: typeof ShellAdminRoute
+    }
+    '/_shell/admin/employees': {
+      id: '/_shell/admin/employees'
+      path: '/employees'
+      fullPath: '/admin/employees'
+      preLoaderRoute: typeof ShellAdminEmployeesRouteImport
+      parentRoute: typeof ShellAdminRoute
+    }
+    '/_shell/admin/departments': {
+      id: '/_shell/admin/departments'
+      path: '/departments'
+      fullPath: '/admin/departments'
+      preLoaderRoute: typeof ShellAdminDepartmentsRouteImport
+      parentRoute: typeof ShellAdminRoute
+    }
+    '/_shell/admin/brands': {
+      id: '/_shell/admin/brands'
+      path: '/brands'
+      fullPath: '/admin/brands'
+      preLoaderRoute: typeof ShellAdminBrandsRouteImport
+      parentRoute: typeof ShellAdminRoute
+    }
   }
 }
+
+interface ShellAdminRouteChildren {
+  ShellAdminBrandsRoute: typeof ShellAdminBrandsRoute
+  ShellAdminDepartmentsRoute: typeof ShellAdminDepartmentsRoute
+  ShellAdminEmployeesRoute: typeof ShellAdminEmployeesRoute
+  ShellAdminRolesRoute: typeof ShellAdminRolesRoute
+}
+
+const ShellAdminRouteChildren: ShellAdminRouteChildren = {
+  ShellAdminBrandsRoute: ShellAdminBrandsRoute,
+  ShellAdminDepartmentsRoute: ShellAdminDepartmentsRoute,
+  ShellAdminEmployeesRoute: ShellAdminEmployeesRoute,
+  ShellAdminRolesRoute: ShellAdminRolesRoute,
+}
+
+const ShellAdminRouteWithChildren = ShellAdminRoute._addFileChildren(
+  ShellAdminRouteChildren,
+)
 
 interface ShellDashboardRouteChildren {
   ShellDashboardAdminRoute: typeof ShellDashboardAdminRoute
@@ -453,6 +566,7 @@ const ShellWorkflowsRouteWithChildren = ShellWorkflowsRoute._addFileChildren(
 )
 
 interface ShellRouteChildren {
+  ShellAdminRoute: typeof ShellAdminRouteWithChildren
   ShellAuditLogRoute: typeof ShellAuditLogRoute
   ShellDashboardRoute: typeof ShellDashboardRouteWithChildren
   ShellFilesRoute: typeof ShellFilesRoute
@@ -465,6 +579,7 @@ interface ShellRouteChildren {
 }
 
 const ShellRouteChildren: ShellRouteChildren = {
+  ShellAdminRoute: ShellAdminRouteWithChildren,
   ShellAuditLogRoute: ShellAuditLogRoute,
   ShellDashboardRoute: ShellDashboardRouteWithChildren,
   ShellFilesRoute: ShellFilesRoute,
