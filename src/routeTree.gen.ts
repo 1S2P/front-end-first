@@ -14,9 +14,14 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ShellRouteImport } from './routes/_shell'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShellWorkflowsRouteImport } from './routes/_shell.workflows'
+import { Route as ShellWeekPlanRouteImport } from './routes/_shell.week-plan'
 import { Route as ShellTeamQueueRouteImport } from './routes/_shell.team-queue'
 import { Route as ShellTasksRouteImport } from './routes/_shell.tasks'
+import { Route as ShellReportsRouteImport } from './routes/_shell.reports'
+import { Route as ShellNotificationsRouteImport } from './routes/_shell.notifications'
+import { Route as ShellFilesRouteImport } from './routes/_shell.files'
 import { Route as ShellDashboardRouteImport } from './routes/_shell.dashboard'
+import { Route as ShellAuditLogRouteImport } from './routes/_shell.audit-log'
 import { Route as ShellWorkflowsIndexRouteImport } from './routes/_shell.workflows.index'
 import { Route as ShellTasksIndexRouteImport } from './routes/_shell.tasks.index'
 import { Route as ShellDashboardIndexRouteImport } from './routes/_shell.dashboard.index'
@@ -49,6 +54,11 @@ const ShellWorkflowsRoute = ShellWorkflowsRouteImport.update({
   path: '/workflows',
   getParentRoute: () => ShellRoute,
 } as any)
+const ShellWeekPlanRoute = ShellWeekPlanRouteImport.update({
+  id: '/week-plan',
+  path: '/week-plan',
+  getParentRoute: () => ShellRoute,
+} as any)
 const ShellTeamQueueRoute = ShellTeamQueueRouteImport.update({
   id: '/team-queue',
   path: '/team-queue',
@@ -59,9 +69,29 @@ const ShellTasksRoute = ShellTasksRouteImport.update({
   path: '/tasks',
   getParentRoute: () => ShellRoute,
 } as any)
+const ShellReportsRoute = ShellReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellNotificationsRoute = ShellNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellFilesRoute = ShellFilesRouteImport.update({
+  id: '/files',
+  path: '/files',
+  getParentRoute: () => ShellRoute,
+} as any)
 const ShellDashboardRoute = ShellDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellAuditLogRoute = ShellAuditLogRouteImport.update({
+  id: '/audit-log',
+  path: '/audit-log',
   getParentRoute: () => ShellRoute,
 } as any)
 const ShellWorkflowsIndexRoute = ShellWorkflowsIndexRouteImport.update({
@@ -104,9 +134,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/workspace': typeof WorkspaceRoute
+  '/audit-log': typeof ShellAuditLogRoute
   '/dashboard': typeof ShellDashboardRouteWithChildren
+  '/files': typeof ShellFilesRoute
+  '/notifications': typeof ShellNotificationsRoute
+  '/reports': typeof ShellReportsRoute
   '/tasks': typeof ShellTasksRouteWithChildren
   '/team-queue': typeof ShellTeamQueueRoute
+  '/week-plan': typeof ShellWeekPlanRoute
   '/workflows': typeof ShellWorkflowsRouteWithChildren
   '/dashboard/admin': typeof ShellDashboardAdminRoute
   '/dashboard/team-lead': typeof ShellDashboardTeamLeadRoute
@@ -120,7 +155,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/workspace': typeof WorkspaceRoute
+  '/audit-log': typeof ShellAuditLogRoute
+  '/files': typeof ShellFilesRoute
+  '/notifications': typeof ShellNotificationsRoute
+  '/reports': typeof ShellReportsRoute
   '/team-queue': typeof ShellTeamQueueRoute
+  '/week-plan': typeof ShellWeekPlanRoute
   '/dashboard/admin': typeof ShellDashboardAdminRoute
   '/dashboard/team-lead': typeof ShellDashboardTeamLeadRoute
   '/tasks/$id': typeof ShellTasksIdRoute
@@ -135,9 +175,14 @@ export interface FileRoutesById {
   '/_shell': typeof ShellRouteWithChildren
   '/login': typeof LoginRoute
   '/workspace': typeof WorkspaceRoute
+  '/_shell/audit-log': typeof ShellAuditLogRoute
   '/_shell/dashboard': typeof ShellDashboardRouteWithChildren
+  '/_shell/files': typeof ShellFilesRoute
+  '/_shell/notifications': typeof ShellNotificationsRoute
+  '/_shell/reports': typeof ShellReportsRoute
   '/_shell/tasks': typeof ShellTasksRouteWithChildren
   '/_shell/team-queue': typeof ShellTeamQueueRoute
+  '/_shell/week-plan': typeof ShellWeekPlanRoute
   '/_shell/workflows': typeof ShellWorkflowsRouteWithChildren
   '/_shell/dashboard/admin': typeof ShellDashboardAdminRoute
   '/_shell/dashboard/team-lead': typeof ShellDashboardTeamLeadRoute
@@ -153,9 +198,14 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/workspace'
+    | '/audit-log'
     | '/dashboard'
+    | '/files'
+    | '/notifications'
+    | '/reports'
     | '/tasks'
     | '/team-queue'
+    | '/week-plan'
     | '/workflows'
     | '/dashboard/admin'
     | '/dashboard/team-lead'
@@ -169,7 +219,12 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/workspace'
+    | '/audit-log'
+    | '/files'
+    | '/notifications'
+    | '/reports'
     | '/team-queue'
+    | '/week-plan'
     | '/dashboard/admin'
     | '/dashboard/team-lead'
     | '/tasks/$id'
@@ -183,9 +238,14 @@ export interface FileRouteTypes {
     | '/_shell'
     | '/login'
     | '/workspace'
+    | '/_shell/audit-log'
     | '/_shell/dashboard'
+    | '/_shell/files'
+    | '/_shell/notifications'
+    | '/_shell/reports'
     | '/_shell/tasks'
     | '/_shell/team-queue'
+    | '/_shell/week-plan'
     | '/_shell/workflows'
     | '/_shell/dashboard/admin'
     | '/_shell/dashboard/team-lead'
@@ -240,6 +300,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellWorkflowsRouteImport
       parentRoute: typeof ShellRoute
     }
+    '/_shell/week-plan': {
+      id: '/_shell/week-plan'
+      path: '/week-plan'
+      fullPath: '/week-plan'
+      preLoaderRoute: typeof ShellWeekPlanRouteImport
+      parentRoute: typeof ShellRoute
+    }
     '/_shell/team-queue': {
       id: '/_shell/team-queue'
       path: '/team-queue'
@@ -254,11 +321,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellTasksRouteImport
       parentRoute: typeof ShellRoute
     }
+    '/_shell/reports': {
+      id: '/_shell/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ShellReportsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/notifications': {
+      id: '/_shell/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof ShellNotificationsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/files': {
+      id: '/_shell/files'
+      path: '/files'
+      fullPath: '/files'
+      preLoaderRoute: typeof ShellFilesRouteImport
+      parentRoute: typeof ShellRoute
+    }
     '/_shell/dashboard': {
       id: '/_shell/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof ShellDashboardRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/audit-log': {
+      id: '/_shell/audit-log'
+      path: '/audit-log'
+      fullPath: '/audit-log'
+      preLoaderRoute: typeof ShellAuditLogRouteImport
       parentRoute: typeof ShellRoute
     }
     '/_shell/workflows/': {
@@ -358,16 +453,26 @@ const ShellWorkflowsRouteWithChildren = ShellWorkflowsRoute._addFileChildren(
 )
 
 interface ShellRouteChildren {
+  ShellAuditLogRoute: typeof ShellAuditLogRoute
   ShellDashboardRoute: typeof ShellDashboardRouteWithChildren
+  ShellFilesRoute: typeof ShellFilesRoute
+  ShellNotificationsRoute: typeof ShellNotificationsRoute
+  ShellReportsRoute: typeof ShellReportsRoute
   ShellTasksRoute: typeof ShellTasksRouteWithChildren
   ShellTeamQueueRoute: typeof ShellTeamQueueRoute
+  ShellWeekPlanRoute: typeof ShellWeekPlanRoute
   ShellWorkflowsRoute: typeof ShellWorkflowsRouteWithChildren
 }
 
 const ShellRouteChildren: ShellRouteChildren = {
+  ShellAuditLogRoute: ShellAuditLogRoute,
   ShellDashboardRoute: ShellDashboardRouteWithChildren,
+  ShellFilesRoute: ShellFilesRoute,
+  ShellNotificationsRoute: ShellNotificationsRoute,
+  ShellReportsRoute: ShellReportsRoute,
   ShellTasksRoute: ShellTasksRouteWithChildren,
   ShellTeamQueueRoute: ShellTeamQueueRoute,
+  ShellWeekPlanRoute: ShellWeekPlanRoute,
   ShellWorkflowsRoute: ShellWorkflowsRouteWithChildren,
 }
 
