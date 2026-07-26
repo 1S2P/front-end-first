@@ -9,38 +9,143 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WorkspaceRouteImport } from './routes/workspace'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as ShellRouteImport } from './routes/_shell'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ShellDashboardRouteImport } from './routes/_shell.dashboard'
+import { Route as ShellDashboardIndexRouteImport } from './routes/_shell.dashboard.index'
+import { Route as ShellDashboardTeamLeadRouteImport } from './routes/_shell.dashboard.team-lead'
+import { Route as ShellDashboardAdminRouteImport } from './routes/_shell.dashboard.admin'
 
+const WorkspaceRoute = WorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShellRoute = ShellRouteImport.update({
+  id: '/_shell',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShellDashboardRoute = ShellDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellDashboardIndexRoute = ShellDashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ShellDashboardRoute,
+} as any)
+const ShellDashboardTeamLeadRoute = ShellDashboardTeamLeadRouteImport.update({
+  id: '/team-lead',
+  path: '/team-lead',
+  getParentRoute: () => ShellDashboardRoute,
+} as any)
+const ShellDashboardAdminRoute = ShellDashboardAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => ShellDashboardRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/workspace': typeof WorkspaceRoute
+  '/dashboard': typeof ShellDashboardRouteWithChildren
+  '/dashboard/admin': typeof ShellDashboardAdminRoute
+  '/dashboard/team-lead': typeof ShellDashboardTeamLeadRoute
+  '/dashboard/': typeof ShellDashboardIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/workspace': typeof WorkspaceRoute
+  '/dashboard/admin': typeof ShellDashboardAdminRoute
+  '/dashboard/team-lead': typeof ShellDashboardTeamLeadRoute
+  '/dashboard': typeof ShellDashboardIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_shell': typeof ShellRouteWithChildren
+  '/login': typeof LoginRoute
+  '/workspace': typeof WorkspaceRoute
+  '/_shell/dashboard': typeof ShellDashboardRouteWithChildren
+  '/_shell/dashboard/admin': typeof ShellDashboardAdminRoute
+  '/_shell/dashboard/team-lead': typeof ShellDashboardTeamLeadRoute
+  '/_shell/dashboard/': typeof ShellDashboardIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/workspace'
+    | '/dashboard'
+    | '/dashboard/admin'
+    | '/dashboard/team-lead'
+    | '/dashboard/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/login'
+    | '/workspace'
+    | '/dashboard/admin'
+    | '/dashboard/team-lead'
+    | '/dashboard'
+  id:
+    | '__root__'
+    | '/'
+    | '/_shell'
+    | '/login'
+    | '/workspace'
+    | '/_shell/dashboard'
+    | '/_shell/dashboard/admin'
+    | '/_shell/dashboard/team-lead'
+    | '/_shell/dashboard/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ShellRoute: typeof ShellRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  WorkspaceRoute: typeof WorkspaceRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/workspace': {
+      id: '/workspace'
+      path: '/workspace'
+      fullPath: '/workspace'
+      preLoaderRoute: typeof WorkspaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_shell': {
+      id: '/_shell'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof ShellRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +153,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_shell/dashboard': {
+      id: '/_shell/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof ShellDashboardRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/dashboard/': {
+      id: '/_shell/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof ShellDashboardIndexRouteImport
+      parentRoute: typeof ShellDashboardRoute
+    }
+    '/_shell/dashboard/team-lead': {
+      id: '/_shell/dashboard/team-lead'
+      path: '/team-lead'
+      fullPath: '/dashboard/team-lead'
+      preLoaderRoute: typeof ShellDashboardTeamLeadRouteImport
+      parentRoute: typeof ShellDashboardRoute
+    }
+    '/_shell/dashboard/admin': {
+      id: '/_shell/dashboard/admin'
+      path: '/admin'
+      fullPath: '/dashboard/admin'
+      preLoaderRoute: typeof ShellDashboardAdminRouteImport
+      parentRoute: typeof ShellDashboardRoute
+    }
   }
 }
 
+interface ShellDashboardRouteChildren {
+  ShellDashboardAdminRoute: typeof ShellDashboardAdminRoute
+  ShellDashboardTeamLeadRoute: typeof ShellDashboardTeamLeadRoute
+  ShellDashboardIndexRoute: typeof ShellDashboardIndexRoute
+}
+
+const ShellDashboardRouteChildren: ShellDashboardRouteChildren = {
+  ShellDashboardAdminRoute: ShellDashboardAdminRoute,
+  ShellDashboardTeamLeadRoute: ShellDashboardTeamLeadRoute,
+  ShellDashboardIndexRoute: ShellDashboardIndexRoute,
+}
+
+const ShellDashboardRouteWithChildren = ShellDashboardRoute._addFileChildren(
+  ShellDashboardRouteChildren,
+)
+
+interface ShellRouteChildren {
+  ShellDashboardRoute: typeof ShellDashboardRouteWithChildren
+}
+
+const ShellRouteChildren: ShellRouteChildren = {
+  ShellDashboardRoute: ShellDashboardRouteWithChildren,
+}
+
+const ShellRouteWithChildren = ShellRoute._addFileChildren(ShellRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ShellRoute: ShellRouteWithChildren,
+  LoginRoute: LoginRoute,
+  WorkspaceRoute: WorkspaceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
