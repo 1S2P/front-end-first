@@ -13,8 +13,15 @@ import { Route as WorkspaceRouteImport } from './routes/workspace'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ShellRouteImport } from './routes/_shell'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ShellWorkflowsRouteImport } from './routes/_shell.workflows'
+import { Route as ShellTeamQueueRouteImport } from './routes/_shell.team-queue'
+import { Route as ShellTasksRouteImport } from './routes/_shell.tasks'
 import { Route as ShellDashboardRouteImport } from './routes/_shell.dashboard'
+import { Route as ShellWorkflowsIndexRouteImport } from './routes/_shell.workflows.index'
+import { Route as ShellTasksIndexRouteImport } from './routes/_shell.tasks.index'
 import { Route as ShellDashboardIndexRouteImport } from './routes/_shell.dashboard.index'
+import { Route as ShellWorkflowsBuilderRouteImport } from './routes/_shell.workflows.builder'
+import { Route as ShellTasksIdRouteImport } from './routes/_shell.tasks.$id'
 import { Route as ShellDashboardTeamLeadRouteImport } from './routes/_shell.dashboard.team-lead'
 import { Route as ShellDashboardAdminRouteImport } from './routes/_shell.dashboard.admin'
 
@@ -37,15 +44,50 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShellWorkflowsRoute = ShellWorkflowsRouteImport.update({
+  id: '/workflows',
+  path: '/workflows',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellTeamQueueRoute = ShellTeamQueueRouteImport.update({
+  id: '/team-queue',
+  path: '/team-queue',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellTasksRoute = ShellTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => ShellRoute,
+} as any)
 const ShellDashboardRoute = ShellDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => ShellRoute,
 } as any)
+const ShellWorkflowsIndexRoute = ShellWorkflowsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ShellWorkflowsRoute,
+} as any)
+const ShellTasksIndexRoute = ShellTasksIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ShellTasksRoute,
+} as any)
 const ShellDashboardIndexRoute = ShellDashboardIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => ShellDashboardRoute,
+} as any)
+const ShellWorkflowsBuilderRoute = ShellWorkflowsBuilderRouteImport.update({
+  id: '/builder',
+  path: '/builder',
+  getParentRoute: () => ShellWorkflowsRoute,
+} as any)
+const ShellTasksIdRoute = ShellTasksIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ShellTasksRoute,
 } as any)
 const ShellDashboardTeamLeadRoute = ShellDashboardTeamLeadRouteImport.update({
   id: '/team-lead',
@@ -63,17 +105,29 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/workspace': typeof WorkspaceRoute
   '/dashboard': typeof ShellDashboardRouteWithChildren
+  '/tasks': typeof ShellTasksRouteWithChildren
+  '/team-queue': typeof ShellTeamQueueRoute
+  '/workflows': typeof ShellWorkflowsRouteWithChildren
   '/dashboard/admin': typeof ShellDashboardAdminRoute
   '/dashboard/team-lead': typeof ShellDashboardTeamLeadRoute
+  '/tasks/$id': typeof ShellTasksIdRoute
+  '/workflows/builder': typeof ShellWorkflowsBuilderRoute
   '/dashboard/': typeof ShellDashboardIndexRoute
+  '/tasks/': typeof ShellTasksIndexRoute
+  '/workflows/': typeof ShellWorkflowsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/workspace': typeof WorkspaceRoute
+  '/team-queue': typeof ShellTeamQueueRoute
   '/dashboard/admin': typeof ShellDashboardAdminRoute
   '/dashboard/team-lead': typeof ShellDashboardTeamLeadRoute
+  '/tasks/$id': typeof ShellTasksIdRoute
+  '/workflows/builder': typeof ShellWorkflowsBuilderRoute
   '/dashboard': typeof ShellDashboardIndexRoute
+  '/tasks': typeof ShellTasksIndexRoute
+  '/workflows': typeof ShellWorkflowsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -82,9 +136,16 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/workspace': typeof WorkspaceRoute
   '/_shell/dashboard': typeof ShellDashboardRouteWithChildren
+  '/_shell/tasks': typeof ShellTasksRouteWithChildren
+  '/_shell/team-queue': typeof ShellTeamQueueRoute
+  '/_shell/workflows': typeof ShellWorkflowsRouteWithChildren
   '/_shell/dashboard/admin': typeof ShellDashboardAdminRoute
   '/_shell/dashboard/team-lead': typeof ShellDashboardTeamLeadRoute
+  '/_shell/tasks/$id': typeof ShellTasksIdRoute
+  '/_shell/workflows/builder': typeof ShellWorkflowsBuilderRoute
   '/_shell/dashboard/': typeof ShellDashboardIndexRoute
+  '/_shell/tasks/': typeof ShellTasksIndexRoute
+  '/_shell/workflows/': typeof ShellWorkflowsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -93,17 +154,29 @@ export interface FileRouteTypes {
     | '/login'
     | '/workspace'
     | '/dashboard'
+    | '/tasks'
+    | '/team-queue'
+    | '/workflows'
     | '/dashboard/admin'
     | '/dashboard/team-lead'
+    | '/tasks/$id'
+    | '/workflows/builder'
     | '/dashboard/'
+    | '/tasks/'
+    | '/workflows/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/workspace'
+    | '/team-queue'
     | '/dashboard/admin'
     | '/dashboard/team-lead'
+    | '/tasks/$id'
+    | '/workflows/builder'
     | '/dashboard'
+    | '/tasks'
+    | '/workflows'
   id:
     | '__root__'
     | '/'
@@ -111,9 +184,16 @@ export interface FileRouteTypes {
     | '/login'
     | '/workspace'
     | '/_shell/dashboard'
+    | '/_shell/tasks'
+    | '/_shell/team-queue'
+    | '/_shell/workflows'
     | '/_shell/dashboard/admin'
     | '/_shell/dashboard/team-lead'
+    | '/_shell/tasks/$id'
+    | '/_shell/workflows/builder'
     | '/_shell/dashboard/'
+    | '/_shell/tasks/'
+    | '/_shell/workflows/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -153,6 +233,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_shell/workflows': {
+      id: '/_shell/workflows'
+      path: '/workflows'
+      fullPath: '/workflows'
+      preLoaderRoute: typeof ShellWorkflowsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/team-queue': {
+      id: '/_shell/team-queue'
+      path: '/team-queue'
+      fullPath: '/team-queue'
+      preLoaderRoute: typeof ShellTeamQueueRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/tasks': {
+      id: '/_shell/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof ShellTasksRouteImport
+      parentRoute: typeof ShellRoute
+    }
     '/_shell/dashboard': {
       id: '/_shell/dashboard'
       path: '/dashboard'
@@ -160,12 +261,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellDashboardRouteImport
       parentRoute: typeof ShellRoute
     }
+    '/_shell/workflows/': {
+      id: '/_shell/workflows/'
+      path: '/'
+      fullPath: '/workflows/'
+      preLoaderRoute: typeof ShellWorkflowsIndexRouteImport
+      parentRoute: typeof ShellWorkflowsRoute
+    }
+    '/_shell/tasks/': {
+      id: '/_shell/tasks/'
+      path: '/'
+      fullPath: '/tasks/'
+      preLoaderRoute: typeof ShellTasksIndexRouteImport
+      parentRoute: typeof ShellTasksRoute
+    }
     '/_shell/dashboard/': {
       id: '/_shell/dashboard/'
       path: '/'
       fullPath: '/dashboard/'
       preLoaderRoute: typeof ShellDashboardIndexRouteImport
       parentRoute: typeof ShellDashboardRoute
+    }
+    '/_shell/workflows/builder': {
+      id: '/_shell/workflows/builder'
+      path: '/builder'
+      fullPath: '/workflows/builder'
+      preLoaderRoute: typeof ShellWorkflowsBuilderRouteImport
+      parentRoute: typeof ShellWorkflowsRoute
+    }
+    '/_shell/tasks/$id': {
+      id: '/_shell/tasks/$id'
+      path: '/$id'
+      fullPath: '/tasks/$id'
+      preLoaderRoute: typeof ShellTasksIdRouteImport
+      parentRoute: typeof ShellTasksRoute
     }
     '/_shell/dashboard/team-lead': {
       id: '/_shell/dashboard/team-lead'
@@ -200,12 +329,46 @@ const ShellDashboardRouteWithChildren = ShellDashboardRoute._addFileChildren(
   ShellDashboardRouteChildren,
 )
 
+interface ShellTasksRouteChildren {
+  ShellTasksIdRoute: typeof ShellTasksIdRoute
+  ShellTasksIndexRoute: typeof ShellTasksIndexRoute
+}
+
+const ShellTasksRouteChildren: ShellTasksRouteChildren = {
+  ShellTasksIdRoute: ShellTasksIdRoute,
+  ShellTasksIndexRoute: ShellTasksIndexRoute,
+}
+
+const ShellTasksRouteWithChildren = ShellTasksRoute._addFileChildren(
+  ShellTasksRouteChildren,
+)
+
+interface ShellWorkflowsRouteChildren {
+  ShellWorkflowsBuilderRoute: typeof ShellWorkflowsBuilderRoute
+  ShellWorkflowsIndexRoute: typeof ShellWorkflowsIndexRoute
+}
+
+const ShellWorkflowsRouteChildren: ShellWorkflowsRouteChildren = {
+  ShellWorkflowsBuilderRoute: ShellWorkflowsBuilderRoute,
+  ShellWorkflowsIndexRoute: ShellWorkflowsIndexRoute,
+}
+
+const ShellWorkflowsRouteWithChildren = ShellWorkflowsRoute._addFileChildren(
+  ShellWorkflowsRouteChildren,
+)
+
 interface ShellRouteChildren {
   ShellDashboardRoute: typeof ShellDashboardRouteWithChildren
+  ShellTasksRoute: typeof ShellTasksRouteWithChildren
+  ShellTeamQueueRoute: typeof ShellTeamQueueRoute
+  ShellWorkflowsRoute: typeof ShellWorkflowsRouteWithChildren
 }
 
 const ShellRouteChildren: ShellRouteChildren = {
   ShellDashboardRoute: ShellDashboardRouteWithChildren,
+  ShellTasksRoute: ShellTasksRouteWithChildren,
+  ShellTeamQueueRoute: ShellTeamQueueRoute,
+  ShellWorkflowsRoute: ShellWorkflowsRouteWithChildren,
 }
 
 const ShellRouteWithChildren = ShellRoute._addFileChildren(ShellRouteChildren)
