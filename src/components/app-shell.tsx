@@ -236,31 +236,10 @@ function NavList({
   );
 }
 
-function MobileNav() {
-  const [open, setOpen] = useState(false);
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  useEffect(() => setOpen(false), [pathname]);
-  return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
-          <Menu className="h-5 w-5" />
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="w-64 bg-sidebar p-0">
-        <SheetTitle className="sr-only">Navigation</SheetTitle>
-        <div className="flex h-full flex-col">
-          <SidebarContent onNavigate={() => setOpen(false)} />
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-}
-
 function TopBar() {
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-border bg-background/85 px-3 backdrop-blur sm:px-6">
-      <MobileNav />
+
       <BrandSwitcher />
       <div className="relative ml-2 hidden max-w-md flex-1 md:block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
