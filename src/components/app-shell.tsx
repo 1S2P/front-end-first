@@ -63,13 +63,72 @@ export function AppShell() {
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 p-4 pb-28 sm:p-6 lg:p-8 lg:pb-8">
           <Outlet />
         </main>
+        <BottomNav />
       </div>
     </div>
   );
 }
+
+const bottomNav: NavItem[] = [
+  { to: "/dashboard", label: "Home", icon: LayoutDashboard },
+  { to: "/tasks", label: "Tasks", icon: ListTodo },
+  { to: "/week-plan", label: "Plan", icon: CalendarDays },
+];
+
+function BottomNav() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [open, setOpen] = useState(false);
+  useEffect(() => setOpen(false), [pathname]);
+
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-30 flex h-[4.5rem] items-center justify-around border-t border-border bg-card px-2 pb-2 lg:hidden">
+      {bottomNav.slice(0, 2).map((i) => (
+        <BottomTab key={i.to} item={i} active={pathname === i.to || pathname.startsWith(i.to + "/")} />
+      ))}
+      <Link
+        to="/team-queue"
+        aria-label="Team Queue"
+        className="grid h-12 w-12 -translate-y-4 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25"
+      >
+        <Users className="h-5 w-5" />
+      </Link>
+      {bottomNav.slice(2).map((i) => (
+        <BottomTab key={i.to} item={i} active={pathname === i.to || pathname.startsWith(i.to + "/")} />
+      ))}
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>
+          <button type="button" className="flex flex-col items-center gap-1 px-3 text-muted-foreground">
+            <Menu className="h-5 w-5" />
+            <span className="text-[10px] font-medium">More</span>
+          </button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-64 bg-sidebar p-0">
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <div className="flex h-full flex-col">
+            <SidebarContent onNavigate={() => setOpen(false)} />
+          </div>
+        </SheetContent>
+      </Sheet>
+    </nav>
+  );
+}
+
+function BottomTab({ item, active }: { item: NavItem; active: boolean }) {
+  const Icon = item.icon;
+  return (
+    <Link
+      to={item.to}
+      className={cn("flex flex-col items-center gap-1 px-3", active ? "text-primary" : "text-muted-foreground")}
+    >
+      <Icon className="h-5 w-5" />
+      <span className={cn("text-[10px]", active ? "font-bold" : "font-medium")}>{item.label}</span>
+    </Link>
+  );
+}
+
 
 function BrandMark() {
   return (
