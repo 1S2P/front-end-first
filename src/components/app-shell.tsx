@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
   LayoutDashboard,
   ListTodo,
@@ -15,7 +15,7 @@ import {
   ShieldCheck,
   UserCog,
   ChevronDown,
-  Menu,
+  Search,
   Plus,
 } from "lucide-react";
 import {
@@ -26,27 +26,23 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
 
-/** The 5 things people use every day. Everything else lives under "More". */
-const primaryNav: NavItem[] = [
-  { to: "/dashboard", label: "Home", icon: LayoutDashboard },
+const mainNav: NavItem[] = [
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/tasks", label: "My Tasks", icon: ListTodo },
-  { to: "/team-queue", label: "Team", icon: Users },
+  { to: "/team-queue", label: "Team Queue", icon: Users },
   { to: "/workflows", label: "Workflows", icon: Workflow },
   { to: "/week-plan", label: "Week Plan", icon: CalendarDays },
-];
-
-const moreNav: NavItem[] = [
   { to: "/notifications", label: "Notifications", icon: Bell },
-  { to: "/files", label: "Files", icon: FolderOpen },
   { to: "/reports", label: "Reports", icon: BarChart3 },
+  { to: "/files", label: "Files", icon: FolderOpen },
   { to: "/audit-log", label: "Audit Log", icon: ScrollText },
 ];
 
@@ -57,48 +53,17 @@ const adminNav: NavItem[] = [
   { to: "/admin/employees", label: "Employees", icon: UserCog },
 ];
 
-const allNav = [...primaryNav, ...moreNav, ...adminNav];
-
-function isActive(pathname: string, to: string) {
-  return pathname === to || pathname.startsWith(to + "/");
-}
-
 export function AppShell() {
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex flex-1 flex-col">
         <TopBar />
-        <main className="flex-1 p-4 pb-24 sm:p-6 lg:p-8 lg:pb-8">
+        <main className="flex-1 p-6 lg:p-8">
           <Outlet />
         </main>
-        <MobileTabBar />
       </div>
     </div>
-  );
-}
-
-function BrandMark() {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground font-bold">D</div>
-      <div className="leading-tight">
-        <div className="text-sm font-semibold">Danfe × NTE</div>
-        <div className="text-xs text-muted-foreground">Workflow Platform</div>
-      </div>
-    </div>
-  );
-}
-
-function NavSections({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
-  return (
-    <>
-      <NavList items={primaryNav} pathname={pathname} onNavigate={onNavigate} />
-      <SectionLabel className="mt-6">More</SectionLabel>
-      <NavList items={moreNav} pathname={pathname} onNavigate={onNavigate} />
-      <SectionLabel className="mt-6">Admin</SectionLabel>
-      <NavList items={adminNav} pathname={pathname} onNavigate={onNavigate} />
-    </>
   );
 }
 
@@ -106,11 +71,20 @@ function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
     <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
-      <div className="flex h-16 items-center px-5 border-b border-sidebar-border">
-        <BrandMark />
+      <div className="flex h-16 items-center gap-2 px-5 border-b border-sidebar-border">
+        <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground font-bold">
+          D
+        </div>
+        <div className="leading-tight">
+          <div className="text-sm font-semibold">Danfe × NTE</div>
+          <div className="text-xs text-muted-foreground">Workflow Platform</div>
+        </div>
       </div>
       <nav className="flex-1 overflow-y-auto p-3">
-        <NavSections pathname={pathname} />
+        <SectionLabel>Workspace</SectionLabel>
+        <NavList items={mainNav} pathname={pathname} />
+        <SectionLabel className="mt-6">Admin</SectionLabel>
+        <NavList items={adminNav} pathname={pathname} />
       </nav>
       <div className="border-t border-sidebar-border p-3">
         <div className="flex items-center gap-3 rounded-lg p-2 hover:bg-sidebar-accent">
@@ -135,25 +109,16 @@ function SectionLabel({ children, className }: { children: ReactNode; className?
   );
 }
 
-function NavList({
-  items,
-  pathname,
-  onNavigate,
-}: {
-  items: NavItem[];
-  pathname: string;
-  onNavigate?: () => void;
-}) {
+function NavList({ items, pathname }: { items: NavItem[]; pathname: string }) {
   return (
     <ul className="space-y-0.5">
       {items.map((item) => {
-        const active = isActive(pathname, item.to);
+        const active = pathname === item.to || pathname.startsWith(item.to + "/");
         const Icon = item.icon;
         return (
           <li key={item.to}>
             <Link
               to={item.to}
-              onClick={onNavigate}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                 active
@@ -171,86 +136,25 @@ function NavList({
   );
 }
 
-function MobileMenu() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const [open, setOpen] = useState(false);
-  useEffect(() => setOpen(false), [pathname]);
-  return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
-          <Menu className="h-5 w-5" />
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="w-72 bg-sidebar p-0">
-        <SheetTitle className="sr-only">Navigation</SheetTitle>
-        <div className="flex h-16 items-center border-b border-sidebar-border px-5">
-          <BrandMark />
-        </div>
-        <nav className="p-3">
-          <NavSections pathname={pathname} onNavigate={() => setOpen(false)} />
-        </nav>
-      </SheetContent>
-    </Sheet>
-  );
-}
-
-/** Current page title, so users always know where they are. */
-function CurrentPageTitle() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const match = allNav
-    .filter((n) => isActive(pathname, n.to))
-    .sort((a, b) => b.to.length - a.to.length)[0];
-  return <span className="truncate text-sm font-semibold">{match?.label ?? "Overview"}</span>;
-}
-
 function TopBar() {
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-border bg-background/90 px-3 backdrop-blur sm:px-6">
-      <MobileMenu />
-      <span className="lg:hidden">
-        <CurrentPageTitle />
-      </span>
-      <div className="hidden lg:block">
-        <BrandSwitcher />
+    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-background/85 px-6 backdrop-blur">
+      <BrandSwitcher />
+      <div className="relative ml-2 hidden max-w-md flex-1 md:block">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input placeholder="Search tasks, workflows, people…" className="pl-9 bg-muted/60 border-transparent focus-visible:bg-card" />
       </div>
-      <div className="ml-auto flex items-center gap-1 sm:gap-2">
-        <Button variant="outline" size="sm" className="hidden gap-1.5 sm:inline-flex">
+      <div className="ml-auto flex items-center gap-2">
+        <Button variant="outline" size="sm" className="gap-1.5">
           <Plus className="h-4 w-4" /> New
         </Button>
-        <Link to="/notifications" className="relative grid h-9 w-9 place-items-center rounded-md hover:bg-muted" aria-label="Notifications">
+        <Link to="/notifications" className="relative grid h-9 w-9 place-items-center rounded-md hover:bg-muted">
           <Bell className="h-4 w-4" />
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
         </Link>
         <RoleSwitcher />
       </div>
     </header>
-  );
-}
-
-/** Bottom tabs give one-tap access to the 5 core pages on small screens. */
-function MobileTabBar() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-background/95 backdrop-blur lg:hidden">
-      {primaryNav.map((item) => {
-        const active = isActive(pathname, item.to);
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.to}
-            to={item.to}
-            className={cn(
-              "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] transition-colors",
-              active ? "text-primary font-medium" : "text-muted-foreground",
-            )}
-          >
-            <Icon className="h-5 w-5" />
-            <span className="truncate px-1">{item.label}</span>
-          </Link>
-        );
-      })}
-    </nav>
   );
 }
 
@@ -321,7 +225,7 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
