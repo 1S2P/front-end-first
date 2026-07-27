@@ -1,10 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { PageHeader } from "@/components/app-shell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { ListTodo, Clock, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
+import { Clock, MessageSquare } from "lucide-react";
 
 export const Route = createFileRoute("/_shell/dashboard/")({
   head: () => ({
@@ -18,70 +15,99 @@ export const Route = createFileRoute("/_shell/dashboard/")({
   component: EmployeeDashboard,
 });
 
+const stats = [
+  { label: "Assigned to me", value: "12", accent: true },
+  { label: "Due today", value: "3", accent: false },
+  { label: "Overdue", value: "1", accent: false },
+  { label: "Done this week", value: "8", accent: false },
+];
+
+const dueToday = [
+  { id: "T-101", title: "Reconcile tea shipment invoices", meta: "Finance · Danfe Tea", tag: "Urgent", urgent: true },
+  { id: "T-102", title: "Post weekly product photos", meta: "Marketing · Danfe Tea", tag: "2:00 PM", urgent: false },
+  { id: "T-103", title: "Approve packaging redesign v3", meta: "Design · NTE", tag: "Tomorrow", urgent: false },
+];
+
+const activity = [
+  { icon: Clock, text: "Sita requested approval on Q3 sourcing plan", time: "12 mins ago", tone: "primary" as const },
+  { icon: MessageSquare, text: "Meera left a comment on Site redesign", time: "45 mins ago", tone: "accent" as const },
+];
+
 function EmployeeDashboard() {
   return (
-    <>
-      <PageHeader
-        title="Good morning, Pratik"
-        description="Here's what needs your attention today."
-        actions={<Button asChild><Link to="/tasks">Open my tasks</Link></Button>}
-      />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Stat icon={ListTodo} label="Assigned to me" value="12" tone="text-primary bg-primary/10" />
-        <Stat icon={Clock} label="Due today" value="3" tone="text-warning-foreground bg-warning/30" />
-        <Stat icon={AlertTriangle} label="Overdue" value="1" tone="text-destructive bg-destructive/10" />
-        <Stat icon={CheckCircle2} label="Completed this week" value="8" tone="text-success bg-success/10" />
-      </div>
-
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Due today</CardTitle>
-            <Button variant="ghost" size="sm" asChild><Link to="/tasks">View all <ArrowRight className="ml-1 h-4 w-4" /></Link></Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {[
-              { t: "Reconcile tea shipment invoices", dep: "Finance", prog: 60 },
-              { t: "Post weekly product photos", dep: "Marketing", prog: 20 },
-              { t: "Approve packaging redesign v3", dep: "Design", prog: 90 },
-            ].map((x) => (
-              <div key={x.t} className="rounded-lg border border-border/70 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="font-medium">{x.t}</div>
-                  <Badge variant="secondary">{x.dep}</Badge>
-                </div>
-                <Progress value={x.prog} className="mt-3 h-1.5" />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle className="text-base">Notifications</CardTitle></CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {[
-              "Approval requested by Sita on 'Q3 sourcing plan'",
-              "Meera left a comment on 'Site redesign'",
-              "Task 'Vendor onboarding' is due tomorrow",
-            ].map((n) => (
-              <div key={n} className="rounded-md border border-border/60 p-3 text-muted-foreground">{n}</div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-    </>
-  );
-}
-
-function Stat({ icon: Icon, label, value, tone }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; tone: string }) {
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-4 p-5">
-        <div className={`grid h-10 w-10 place-items-center rounded-lg ${tone}`}><Icon className="h-5 w-5" /></div>
-        <div>
-          <div className="text-2xl font-semibold leading-none">{value}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{label}</div>
+    <div className="mx-auto max-w-3xl space-y-8">
+      <section>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Morning, Pratik</h1>
+        <p className="mt-1 text-sm text-muted-foreground">You have 3 tasks to complete today.</p>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {stats.map((s) => (
+            <Card key={s.label} className="shadow-sm">
+              <CardContent className="p-4">
+                <span className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {s.label}
+                </span>
+                <span className={`mt-1 block text-2xl font-bold ${s.accent ? "text-primary" : "text-foreground"}`}>
+                  {s.value}
+                </span>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </CardContent>
-    </Card>
+      </section>
+
+      <section>
+        <div className="mb-3 flex items-end justify-between">
+          <h2 className="font-semibold">Due today</h2>
+          <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild>
+            <Link to="/tasks">View all</Link>
+          </Button>
+        </div>
+        <div className="space-y-3">
+          {dueToday.map((t) => (
+            <Link
+              key={t.id}
+              to="/tasks/$id"
+              params={{ id: t.id }}
+              className={`flex items-center justify-between gap-3 rounded-2xl border-l-4 bg-card p-4 shadow-sm transition-colors hover:bg-muted/40 ${
+                t.urgent ? "border-l-destructive" : "border-l-primary"
+              }`}
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{t.title}</p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">{t.meta}</p>
+              </div>
+              <span
+                className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${
+                  t.urgent ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {t.tag}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-3 font-semibold">Recent activity</h2>
+        <div className="space-y-4">
+          {activity.map((a) => (
+            <div key={a.text} className="flex gap-3">
+              <div
+                className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${
+                  a.tone === "primary" ? "bg-primary/10 text-primary" : "bg-accent text-accent-foreground"
+                }`}
+              >
+                <a.icon className="h-3.5 w-3.5" />
+              </div>
+              <div>
+                <p className="text-sm">{a.text}</p>
+                <p className="text-[10px] text-muted-foreground">{a.time}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
