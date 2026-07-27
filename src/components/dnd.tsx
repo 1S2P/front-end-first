@@ -57,7 +57,7 @@ export function DropZone({
   activeClassName = "ring-2 ring-primary/60 bg-primary/5",
 }: {
   onDrop: (id: string) => void;
-  children: ReactNode;
+  children?: ReactNode;
   className?: string;
   activeClassName?: string;
 }) {
