@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   LayoutDashboard,
   ListTodo,
@@ -10,13 +10,10 @@ import {
   BarChart3,
   ScrollText,
   FolderOpen,
-  Building2,
-  Boxes,
-  ShieldCheck,
-  UserCog,
+  Settings,
   ChevronDown,
   Search,
-  Plus,
+  Menu,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -26,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,12 +32,16 @@ import { cn } from "@/lib/utils";
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
 
+// Simplified: 5 everyday destinations, everything else lives under "More".
 const mainNav: NavItem[] = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/dashboard", label: "Home", icon: LayoutDashboard },
   { to: "/tasks", label: "My Tasks", icon: ListTodo },
   { to: "/team-queue", label: "Team Queue", icon: Users },
   { to: "/workflows", label: "Workflows", icon: Workflow },
   { to: "/week-plan", label: "Week Plan", icon: CalendarDays },
+];
+
+const moreNav: NavItem[] = [
   { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/files", label: "Files", icon: FolderOpen },
@@ -47,19 +49,21 @@ const mainNav: NavItem[] = [
 ];
 
 const adminNav: NavItem[] = [
-  { to: "/admin/brands", label: "Brands", icon: Building2 },
-  { to: "/admin/departments", label: "Departments", icon: Boxes },
-  { to: "/admin/roles", label: "Roles & Permissions", icon: ShieldCheck },
-  { to: "/admin/employees", label: "Employees", icon: UserCog },
-];
+  { to: "/admin/brands", label: "Brands" },
+  { to: "/admin/departments", label: "Departments" },
+  { to: "/admin/roles", label: "Roles & Permissions" },
+  { to: "/admin/employees", label: "Employees" },
+].map((i) => ({ ...i, icon: Settings }));
 
 export function AppShell() {
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <div className="flex flex-1 flex-col">
+      <aside className="hidden w-60 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
+        <SidebarContent />
+      </aside>
+      <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
-        <main className="flex-1 p-6 lg:p-8">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>
@@ -67,24 +71,34 @@ export function AppShell() {
   );
 }
 
-function Sidebar() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+function BrandMark() {
   return (
-    <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
-      <div className="flex h-16 items-center gap-2 px-5 border-b border-sidebar-border">
-        <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground font-bold">
-          D
-        </div>
-        <div className="leading-tight">
-          <div className="text-sm font-semibold">Danfe × NTE</div>
-          <div className="text-xs text-muted-foreground">Workflow Platform</div>
-        </div>
+    <div className="flex h-16 items-center gap-2 px-5 border-b border-sidebar-border">
+      <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground font-bold">D</div>
+      <div className="leading-tight">
+        <div className="text-sm font-semibold">Danfe × NTE</div>
+        <div className="text-xs text-muted-foreground">Workflow Platform</div>
       </div>
+    </div>
+  );
+}
+
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [showMore, setShowMore] = useState(() => moreNav.some((i) => pathname.startsWith(i.to)));
+  const [showAdmin, setShowAdmin] = useState(() => pathname.startsWith("/admin"));
+
+  return (
+    <>
+      <BrandMark />
       <nav className="flex-1 overflow-y-auto p-3">
-        <SectionLabel>Workspace</SectionLabel>
-        <NavList items={mainNav} pathname={pathname} />
-        <SectionLabel className="mt-6">Admin</SectionLabel>
-        <NavList items={adminNav} pathname={pathname} />
+        <NavList items={mainNav} pathname={pathname} onNavigate={onNavigate} />
+
+        <SectionToggle open={showMore} onClick={() => setShowMore((v) => !v)} label="More" className="mt-4" />
+        {showMore && <NavList items={moreNav} pathname={pathname} onNavigate={onNavigate} />}
+
+        <SectionToggle open={showAdmin} onClick={() => setShowAdmin((v) => !v)} label="Admin" className="mt-4" />
+        {showAdmin && <NavList items={adminNav} pathname={pathname} onNavigate={onNavigate} />}
       </nav>
       <div className="border-t border-sidebar-border p-3">
         <div className="flex items-center gap-3 rounded-lg p-2 hover:bg-sidebar-accent">
@@ -97,21 +111,47 @@ function Sidebar() {
           </div>
         </div>
       </div>
-    </aside>
+    </>
   );
 }
 
-function SectionLabel({ children, className }: { children: ReactNode; className?: string }) {
+function SectionToggle({
+  label,
+  open,
+  onClick,
+  className,
+}: {
+  label: string;
+  open: boolean;
+  onClick: () => void;
+  className?: string;
+}) {
   return (
-    <div className={cn("px-2 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground", className)}>
-      {children}
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-sidebar-accent",
+        className,
+      )}
+    >
+      {label}
+      <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !open && "-rotate-90")} />
+    </button>
   );
 }
 
-function NavList({ items, pathname }: { items: NavItem[]; pathname: string }) {
+function NavList({
+  items,
+  pathname,
+  onNavigate,
+}: {
+  items: NavItem[];
+  pathname: string;
+  onNavigate?: () => void;
+}) {
   return (
-    <ul className="space-y-0.5">
+    <ul className="space-y-0.5 py-1">
       {items.map((item) => {
         const active = pathname === item.to || pathname.startsWith(item.to + "/");
         const Icon = item.icon;
@@ -119,6 +159,7 @@ function NavList({ items, pathname }: { items: NavItem[]; pathname: string }) {
           <li key={item.to}>
             <Link
               to={item.to}
+              onClick={onNavigate}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                 active
@@ -136,18 +177,37 @@ function NavList({ items, pathname }: { items: NavItem[]; pathname: string }) {
   );
 }
 
+function MobileNav() {
+  const [open, setOpen] = useState(false);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  useEffect(() => setOpen(false), [pathname]);
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
+          <Menu className="h-5 w-5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-64 bg-sidebar p-0">
+        <SheetTitle className="sr-only">Navigation</SheetTitle>
+        <div className="flex h-full flex-col">
+          <SidebarContent onNavigate={() => setOpen(false)} />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 function TopBar() {
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-background/85 px-6 backdrop-blur">
+    <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-border bg-background/85 px-3 backdrop-blur sm:px-6">
+      <MobileNav />
       <BrandSwitcher />
       <div className="relative ml-2 hidden max-w-md flex-1 md:block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input placeholder="Search tasks, workflows, people…" className="pl-9 bg-muted/60 border-transparent focus-visible:bg-card" />
       </div>
-      <div className="ml-auto flex items-center gap-2">
-        <Button variant="outline" size="sm" className="gap-1.5">
-          <Plus className="h-4 w-4" /> New
-        </Button>
+      <div className="ml-auto flex items-center gap-1">
         <Link to="/notifications" className="relative grid h-9 w-9 place-items-center rounded-md hover:bg-muted">
           <Bell className="h-4 w-4" />
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
@@ -164,7 +224,7 @@ function BrandSwitcher() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="gap-2 pl-2 pr-2.5">
           <div className="grid h-6 w-6 place-items-center rounded bg-accent text-accent-foreground text-xs font-bold">DT</div>
-          <span className="text-sm font-medium">Danfe Tea</span>
+          <span className="hidden text-sm font-medium sm:inline">Danfe Tea</span>
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>

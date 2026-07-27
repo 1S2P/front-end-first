@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,33 +9,65 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Copy, Trash2, Share2 } from "lucide-react";
+import { Plus, Copy, Trash2, Share2, GripVertical } from "lucide-react";
+import { DndProvider, Draggable, DropZone } from "@/components/dnd";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_shell/workflows/builder")({
   head: () => ({
     meta: [
       { title: "Workflow Builder · Danfe × NTE" },
-      { name: "description", content: "Design multi-step workflows with dependencies and approvals." },
+      { name: "description", content: "Design multi-step workflows with drag-and-drop step ordering." },
       { property: "og:title", content: "Workflow Builder" },
-      { property: "og:description", content: "Visual step-based workflow editor." },
+      { property: "og:description", content: "Visual step-based workflow editor with drag-and-drop." },
     ],
   }),
   component: WorkflowBuilder,
 });
 
-const steps = [
-  { n: 1, name: "Draft brief", dep: "Marketing", role: "Employee", approval: false },
-  { n: 2, name: "Legal review", dep: "Legal", role: "Employee", approval: true },
-  { n: 3, name: "Design assets", dep: "Design", role: "Employee", approval: false },
-  { n: 4, name: "Approval — Head of Brand", dep: "Marketing", role: "Team Lead", approval: true },
+type Step = { id: string; name: string; dep: string; role: string; approval: boolean };
+
+const initialSteps: Step[] = [
+  { id: "s1", name: "Draft brief", dep: "Marketing", role: "Employee", approval: false },
+  { id: "s2", name: "Legal review", dep: "Legal", role: "Employee", approval: true },
+  { id: "s3", name: "Design assets", dep: "Design", role: "Employee", approval: false },
+  { id: "s4", name: "Approval — Head of Brand", dep: "Marketing", role: "Team Lead", approval: true },
 ];
 
 function WorkflowBuilder() {
+  const [steps, setSteps] = useState<Step[]>(initialSteps);
+
+  const reorder = (dragId: string, targetIndex: number) => {
+    setSteps((prev) => {
+      const from = prev.findIndex((s) => s.id === dragId);
+      if (from === -1 || from === targetIndex) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(from < targetIndex ? targetIndex - 1 : targetIndex, 0, moved);
+      toast.success(`“${moved.name}” reordered`);
+      return next;
+    });
+  };
+
+  const remove = (id: string) => setSteps((prev) => prev.filter((s) => s.id !== id));
+  const duplicate = (id: string) =>
+    setSteps((prev) => {
+      const i = prev.findIndex((s) => s.id === id);
+      if (i === -1) return prev;
+      const copy = { ...prev[i], id: `${prev[i].id}-${Date.now()}`, name: `${prev[i].name} (copy)` };
+      return [...prev.slice(0, i + 1), copy, ...prev.slice(i + 1)];
+    });
+  const addStep = () =>
+    setSteps((prev) => [
+      ...prev,
+      { id: `s-${Date.now()}`, name: "New step", dep: "Operations", role: "Employee", approval: false },
+    ]);
+
   return (
     <>
       <PageHeader
         title="Untitled workflow"
-        description="Draft · autosaved just now"
+        description="Draft · drag steps by the handle to reorder them"
         actions={
           <>
             <Button variant="outline"><Share2 className="mr-1.5 h-4 w-4" />Share</Button>
@@ -46,38 +79,39 @@ function WorkflowBuilder() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Steps</CardTitle>
-            <Button variant="outline" size="sm"><Plus className="mr-1.5 h-4 w-4" />Add step</Button>
+            <Button variant="outline" size="sm" onClick={addStep}><Plus className="mr-1.5 h-4 w-4" />Add step</Button>
           </CardHeader>
           <CardContent>
-            <div className="relative rounded-xl border border-dashed border-border bg-muted/30 p-6">
-              <div className="space-y-3">
+            <DndProvider>
+              <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 sm:p-6">
                 {steps.map((s, i) => (
-                  <div key={s.n} className="relative">
-                    <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-4 shadow-sm">
-                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">{s.n}</div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <div className="font-medium">{s.name}</div>
-                          {s.approval && <Badge variant="secondary">Approval</Badge>}
+                  <div key={s.id}>
+                    <DropZone onDrop={(id) => reorder(id, i)} className="h-3" activeClassName="bg-primary/25" />
+                    <Draggable id={s.id}>
+                      <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-4 shadow-sm">
+                        <GripVertical className="mt-1.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">{i + 1}</div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium">{s.name}</div>
+                            {s.approval && <Badge variant="secondary">Approval</Badge>}
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">{s.dep} · {s.role}</div>
                         </div>
-                        <div className="mt-1 text-xs text-muted-foreground">{s.dep} · {s.role}</div>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => duplicate(s.id)}><Copy className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => remove(s.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
                       </div>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8"><Copy className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      </div>
-                    </div>
-                    {i < steps.length - 1 && (
-                      <div className="my-2 flex items-center justify-center">
-                        <div className="h-6 w-px bg-border" />
-                      </div>
-                    )}
+                    </Draggable>
                   </div>
                 ))}
+                <DropZone onDrop={(id) => reorder(id, steps.length)} className="h-6" activeClassName="bg-primary/25" />
               </div>
-            </div>
+            </DndProvider>
           </CardContent>
         </Card>
+
 
         <Card className="h-fit sticky top-24">
           <CardHeader><CardTitle className="text-base">Step properties</CardTitle></CardHeader>
