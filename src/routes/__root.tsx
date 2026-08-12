@@ -6,10 +6,12 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  redirect,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
-
+import { AppProvider, useApp } from "@/lib/app-context";
+import { supabase } from "@/lib/supabase";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -75,14 +77,35 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  beforeLoad: async ({ location }) => {
+    // The server can't access the browser's Supabase session (stored in
+    // localStorage), so this check must only run on the client.
+    if (typeof window === "undefined") return;
+    // Allow visiting the login page while unauthenticated.
+    if (location.pathname === "/login") return;
+
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      throw redirect({
+        to: "/login",
+        search: { redirect: location.href },
+      });
+    }
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Danfe × NTE — Workflow Platform" },
-      { name: "description", content: "Workflow automation and team management for Danfe Tea and Nepal Tea Exchange." },
-      { property: "og:title", content: "Danfe × NTE — Workflow Platform" },
-      { property: "og:description", content: "Plan the week, run approvals, and keep every task on track." },
+      { title: "Danfe x NTE — Workflow Platform" },
+      {
+        name: "description",
+        content: "Workflow automation and team management for Danfe Tea and Nepal Tea Exchange.",
+      },
+      { property: "og:title", content: "Danfe x NTE — Workflow Platform" },
+      {
+        property: "og:description",
+        content: "Plan the week, run approvals, and keep every task on track.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -114,15 +137,36 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function AuthGate() {
+  const router = useRouter();
+  const { currentUser, isLoading } = useApp();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const location = router.state.location;
+    if (location.pathname === "/login") return;
+
+    if (!currentUser) {
+      router.navigate({
+        to: "/login",
+        search: { redirect: location.href },
+      });
+    }
+  }, [currentUser, isLoading, router]);
+
+  return <Outlet />;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
-      <Toaster position="bottom-right" richColors />
+      <AppProvider>
+        <AuthGate />
+        <Toaster position="bottom-right" richColors />
+      </AppProvider>
     </QueryClientProvider>
   );
-
 }
