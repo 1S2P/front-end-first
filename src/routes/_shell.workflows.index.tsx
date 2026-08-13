@@ -53,13 +53,19 @@ export const Route = createFileRoute("/_shell/workflows/")({
 });
 
 function WorkflowLibrary() {
-  const { currentBrandId, currentRole } = useApp();
+  const { currentBrandId, currentRole, hasPermission } = useApp();
   const [search, setSearch] = useState("");
   const { data: allWorkflows = [], isLoading } = useWorkflowTemplates(currentBrandId);
   const deleteWorkflow = useDeleteWorkflowTemplate();
   const archiveWorkflow = useArchiveWorkflowTemplate();
   const startWorkflow = useStartWorkflow();
   const { data: projects = [] } = useProjects(currentBrandId);
+
+  const canCreate = currentRole === "admin" || hasPermission("workflow_create") || hasPermission("workflow_builder_access");
+  const canStart = currentRole === "admin" || hasPermission("workflow_start");
+  const canEdit = currentRole === "admin" || hasPermission("workflow_edit");
+  const canDelete = currentRole === "admin" || hasPermission("workflow_delete");
+  const canManage = canStart || canEdit || canDelete;
 
   const [executeDialog, setExecuteDialog] = useState<{
     open: boolean;
@@ -135,7 +141,7 @@ function WorkflowLibrary() {
         title="Workflow Library"
         description="Reusable templates. Design once, use unlimited times."
         actions={
-          currentRole === "admin" ? (
+          canCreate ? (
             <Button asChild>
               <Link to="/workflows/builder">
                 <Plus className="mr-1.5 h-4 w-4" />
@@ -163,7 +169,7 @@ function WorkflowLibrary() {
             <Workflow className="mx-auto h-10 w-10 text-muted-foreground/50" />
             <h3 className="mt-3 text-sm font-medium">No workflows found</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              {currentRole === "admin"
+              {canCreate
                 ? "Create your first workflow to get started."
                 : "No workflows available in this workspace."}
             </p>
@@ -205,49 +211,57 @@ function WorkflowLibrary() {
                           </span>
                         </div>
                         <div className="mt-4 flex flex-wrap gap-1.5">
-                          {currentRole === "admin" && (
+                          {canManage && (
                             <>
-                              <Button
-                                variant="default"
-                                size="sm"
-                                disabled={w.status !== "active" || startWorkflow.isPending}
-                                onClick={() => {
-                                  setSelectedProjectId("");
-                                  setStartDate("");
-                                  setExecuteDialog({
-                                    open: true,
-                                    workflowId: w.id,
-                                    workflowName: w.name,
-                                  });
-                                }}
-                              >
-                                <Play className="mr-1 h-3.5 w-3.5" />
-                                Execute
-                              </Button>
-                              <Button variant="outline" size="sm" asChild>
-                                <Link to="/workflows/builder" search={{ templateId: w.id }}>
-                                  <Pencil className="mr-1 h-3.5 w-3.5" />
-                                  Edit
-                                </Link>
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  handleArchive(w.id, w.name, w.status)
-                                }
-                              >
-                                <Archive className="mr-1 h-3.5 w-3.5" />
-                                {w.status === "active" ? "Archive" : "Unarchive"}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(w.id, w.name)}
-                                disabled={deleteWorkflow.isPending}
-                              >
-                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                              </Button>
+                              {canStart && (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  disabled={w.status !== "active" || startWorkflow.isPending}
+                                  onClick={() => {
+                                    setSelectedProjectId("");
+                                    setStartDate("");
+                                    setExecuteDialog({
+                                      open: true,
+                                      workflowId: w.id,
+                                      workflowName: w.name,
+                                    });
+                                  }}
+                                >
+                                  <Play className="mr-1 h-3.5 w-3.5" />
+                                  Execute
+                                </Button>
+                              )}
+                              {canEdit && (
+                                <Button variant="outline" size="sm" asChild>
+                                  <Link to="/workflows/builder" search={{ templateId: w.id }}>
+                                    <Pencil className="mr-1 h-3.5 w-3.5" />
+                                    Edit
+                                  </Link>
+                                </Button>
+                              )}
+                              {canEdit && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleArchive(w.id, w.name, w.status)
+                                  }
+                                >
+                                  <Archive className="mr-1 h-3.5 w-3.5" />
+                                  {w.status === "active" ? "Archive" : "Unarchive"}
+                                </Button>
+                              )}
+                              {canDelete && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(w.id, w.name)}
+                                  disabled={deleteWorkflow.isPending}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                </Button>
+                              )}
                             </>
                           )}
                         </div>

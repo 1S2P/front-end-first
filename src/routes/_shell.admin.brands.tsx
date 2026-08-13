@@ -16,6 +16,7 @@ import { Plus, Building2 } from "lucide-react";
 import { useState } from "react";
 import { useBrands, useCreateBrand } from "@/lib/api/admin";
 import { useProjects } from "@/lib/api/admin";
+import { useRequirePermission } from "@/lib/app-context";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_shell/admin/brands")({
@@ -30,12 +31,15 @@ export const Route = createFileRoute("/_shell/admin/brands")({
 });
 
 function BrandManagement() {
+  const denied = useRequirePermission("admin_manage_brands");
   const { data: brands = [], isLoading } = useBrands();
   const createBrand = useCreateBrand();
   const [showNew, setShowNew] = useState(false);
   const [name, setName] = useState("");
   const [initials, setInitials] = useState("");
   const [color, setColor] = useState("bg-primary/15 text-primary");
+
+  if (denied) return null;
 
   const handleCreate = async () => {
     if (!name.trim() || !initials.trim()) return;

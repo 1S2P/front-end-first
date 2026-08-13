@@ -85,7 +85,7 @@ type SupabaseTask = {
 function MyTasks() {
   const [view, setView] = useState<"list" | "board">("board");
   const [activeTab, setActiveTab] = useState<"my" | "dept" | "reviews" | "reassigned">("my");
-  const { currentUser, currentBrandId, currentRole } = useApp();
+  const { currentUser, currentBrandId, currentRole, hasPermission } = useApp();
   const { data: myTasks = [], isLoading } = useMyTasks(currentBrandId);
   const { data: pendingReviews = [] } = usePendingReviews();
   const { data: reassignedTasks = [] } = useReassignedTasks();
@@ -99,7 +99,8 @@ function MyTasks() {
     );
   }
 
-  const canSeeDept = currentRole === "admin" || currentRole === "team_lead";
+  const canSeeDept = currentRole === "admin" || hasPermission("dashboard_department_tasks");
+  const canReviewTasks = currentRole === "admin" || hasPermission("tasks_review");
 
   const deptTasks =
     activeTab === "dept" && canSeeDept
@@ -175,7 +176,7 @@ function MyTasks() {
         <TabsList>
           <TabsTrigger value="my">My Tasks</TabsTrigger>
           {canSeeDept && <TabsTrigger value="dept">Department</TabsTrigger>}
-          {canSeeDept && (
+          {canReviewTasks && (
             <TabsTrigger value="reviews">
               Pending Reviews
               {pendingReviews.length > 0 && (
@@ -214,7 +215,7 @@ function MyTasks() {
             )}
           </TabsContent>
         )}
-        {canSeeDept && (
+        {canReviewTasks && (
           <TabsContent value="reviews" className="mt-4">
             {view === "board" ? (
               <BoardView tasks={pendingReviews} showAssignee={true} />

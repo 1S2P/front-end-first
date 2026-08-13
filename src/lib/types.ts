@@ -20,6 +20,15 @@ export type SystemRole = "admin" | "team_lead" | "team_member";
 // ─── Permission Types (Google Drive inspired) ────────────────────────────────
 export type PermissionLevel = "admin" | "editor" | "reviewer" | "viewer";
 
+// ─── Granular permissions (admin-assignable per employee) ────────────────────
+export type Permission = {
+  id: string;
+  groupName: string;
+  name: string;
+  description: string;
+  sortOrder: number;
+};
+
 // ─── Users ───────────────────────────────────────────────────────────────────
 export type User = {
   id: string;

@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import { useProfiles, useBrands, useDepartments, useInviteUser } from "@/lib/api/admin";
+import { useRequirePermission } from "@/lib/app-context";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -47,12 +48,15 @@ export const Route = createFileRoute("/_shell/admin/employees")({
 });
 
 function EmployeeManagement() {
+  const denied = useRequirePermission("admin_manage_employees");
   const [search, setSearch] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const { data: profiles = [], isLoading } = useProfiles();
   const { data: brands = [] } = useBrands();
   const { data: departments = [] } = useDepartments();
   const inviteUser = useInviteUser();
+
+  if (denied) return null;
 
   const filtered = search
     ? profiles.filter(

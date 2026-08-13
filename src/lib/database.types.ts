@@ -77,6 +77,22 @@ export interface Database {
         Insert: Database["public"]["Tables"]["profile_brands"]["Row"];
         Update: Partial<Database["public"]["Tables"]["profile_brands"]["Row"]>;
       };
+      permissions: {
+        Row: {
+          id: string;
+          group_name: string;
+          name: string;
+          description: string;
+          sort_order: number;
+        };
+        Insert: Database["public"]["Tables"]["permissions"]["Row"];
+        Update: Partial<Database["public"]["Tables"]["permissions"]["Row"]>;
+      };
+      profile_permissions: {
+        Row: { profile_id: string; permission_id: string; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["profile_permissions"]["Row"], "created_at">;
+        Update: Partial<Database["public"]["Tables"]["profile_permissions"]["Row"]>;
+      };
       projects: {
         Row: {
           id: string;
@@ -249,6 +265,7 @@ export interface Database {
       review_task: { Args: { p_task_id: string; p_action: string }; Returns: void };
       is_admin: { Args: Record<never, never>; Returns: boolean };
       get_my_role: { Args: Record<never, never>; Returns: SystemRole };
+      has_permission: { Args: { p_permission: string }; Returns: boolean };
     };
   };
 }

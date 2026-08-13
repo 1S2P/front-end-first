@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_shell/dashboard/")({
 });
 
 function DashboardRouter() {
-  const { currentUser, currentRole } = useApp();
+  const { currentUser, currentRole, hasPermission } = useApp();
 
   if (!currentUser) {
     return (
@@ -32,7 +32,13 @@ function DashboardRouter() {
     return <AdminDashboard />;
   }
 
-  if (currentRole === "team_lead") {
+  const hasTeamView =
+    hasPermission("dashboard_department_tasks") ||
+    hasPermission("dashboard_department_progress") ||
+    hasPermission("dashboard_all_projects") ||
+    hasPermission("dashboard_all_workflows");
+
+  if (hasTeamView) {
     return <TeamLeadDashboard />;
   }
 

@@ -15,6 +15,7 @@ import {
 import { Plus, Users } from "lucide-react";
 import { useState } from "react";
 import { useDepartments, useCreateDepartment, useBrands } from "@/lib/api/admin";
+import { useRequirePermission } from "@/lib/app-context";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_shell/admin/departments")({
@@ -29,12 +30,15 @@ export const Route = createFileRoute("/_shell/admin/departments")({
 });
 
 function DepartmentManagement() {
+  const denied = useRequirePermission("admin_manage_departments");
   const { data: departments = [], isLoading } = useDepartments();
   const { data: brands = [] } = useBrands();
   const createDepartment = useCreateDepartment();
   const [showNew, setShowNew] = useState(false);
   const [name, setName] = useState("");
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+
+  if (denied) return null;
 
   const handleCreate = async () => {
     if (!name.trim()) return;

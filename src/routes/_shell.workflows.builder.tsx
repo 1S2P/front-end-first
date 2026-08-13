@@ -27,7 +27,7 @@ import {
   CheckCircle2,
   Play,
 } from "lucide-react";
-import { useApp } from "@/lib/app-context";
+import { useApp, useRequirePermission } from "@/lib/app-context";
 import { useDepartments, useProfiles } from "@/lib/api/admin";
 import { useSaveWorkflowTemplate, useWorkflowTemplate } from "@/lib/api/workflows";
 import { cn } from "@/lib/utils";
@@ -62,6 +62,7 @@ type StepNode = {
 
 function WorkflowBuilder() {
   const { templateId } = Route.useSearch();
+  const denied = useRequirePermission("workflow_builder_access");
   const { currentBrandId } = useApp();
   const { data: departments = [] } = useDepartments(currentBrandId);
   const { data: profiles = [] } = useProfiles(currentBrandId);
@@ -209,6 +210,8 @@ function WorkflowBuilder() {
     if (!selectedStep) return false;
     return u.department_id === selectedStep.departmentId || !selectedStep.departmentId;
   });
+
+  if (denied) return null;
 
   return (
     <>

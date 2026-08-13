@@ -2,6 +2,64 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../supabase";
 import type { SystemRole } from "../database.types";
 
+// ─── Permissions ─────────────────────────────────────────────────────────────
+export function usePermissionsCatalog() {
+  return useQuery({
+    queryKey: ["permissions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("permissions")
+        .select("*")
+        .order("sort_order");
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+export function useProfilePermissions(profileId?: string) {
+  return useQuery({
+    queryKey: ["profile_permissions", profileId],
+    enabled: !!profileId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profile_permissions")
+        .select("permission_id")
+        .eq("profile_id", profileId!);
+      if (error) throw error;
+      return (data ?? []).map((pp) => pp.permission_id);
+    },
+  });
+}
+
+export function useAssignPermissions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      profileId,
+      permissionIds,
+    }: {
+      profileId: string;
+      permissionIds: string[];
+    }) => {
+      const { data: session } = await supabase.auth.getSession();
+      const accessToken = session?.session?.access_token;
+      if (!accessToken) throw new Error("Not authenticated");
+
+      const { setProfilePermissions } = await import("@/lib/server-functions");
+      await setProfilePermissions({
+        data: { accessToken, profileId, permissionIds },
+      });
+      return { profileId, permissionIds };
+    },
+    onSuccess: (_data, { profileId }) => {
+      qc.invalidateQueries({ queryKey: ["profile_permissions", profileId] });
+      qc.invalidateQueries({ queryKey: ["profile_permissions"] });
+    },
+  });
+}
+
 // ─── Brands ──────────────────────────────────────────────────────────────────
 export function useBrands() {
   return useQuery({

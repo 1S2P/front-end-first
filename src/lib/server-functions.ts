@@ -1,6 +1,69 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 
+async function getUserPermissionIds(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  userClient: any,
+  userId: string,
+) {
+  const { data } = await userClient
+    .from("profile_permissions")
+    .select("permission_id")
+    .eq("profile_id", userId);
+  return new Set(((data ?? []) as { permission_id: string }[]).map((p) => p.permission_id));
+}
+
+export const setProfilePermissions = createServerFn({ method: "POST" as const })
+  .validator(
+    (data: { accessToken: string; profileId: string; permissionIds: string[] }) => data,
+  )
+  .handler(async ({ data }) => {
+    const userClient = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.VITE_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: `Bearer ${data.accessToken}` } } },
+    );
+
+    const {
+      data: { user },
+    } = await userClient.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
+
+    const { data: callerProfile } = await userClient
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    const isAdmin = callerProfile?.role === "admin";
+    const perms = await getUserPermissionIds(userClient, user.id);
+    if (!isAdmin && !perms.has("admin_assign_permissions")) {
+      throw new Error("Forbidden: you do not have permission to assign permissions");
+    }
+
+    const adminClient = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+
+    const { error: deleteError } = await adminClient
+      .from("profile_permissions")
+      .delete()
+      .eq("profile_id", data.profileId);
+    if (deleteError) throw new Error(deleteError.message || "Failed to update permissions");
+
+    if (data.permissionIds.length > 0) {
+      const { error: insertError } = await adminClient.from("profile_permissions").insert(
+        data.permissionIds.map((permission_id) => ({
+          profile_id: data.profileId,
+          permission_id,
+        })),
+      );
+      if (insertError) throw new Error(insertError.message || "Failed to update permissions");
+    }
+
+    return { profileId: data.profileId };
+  });
+
 export const inviteEmployee = createServerFn({ method: "POST" as const })
   .validator(
     (data: {
@@ -30,7 +93,9 @@ export const inviteEmployee = createServerFn({ method: "POST" as const })
       .select("role")
       .eq("id", user.id)
       .single();
-    if (profile?.role !== "admin") throw new Error("Forbidden");
+    const isAdmin = profile?.role === "admin";
+    const perms = await getUserPermissionIds(userClient, user.id);
+    if (!isAdmin && !perms.has("admin_manage_employees")) throw new Error("Forbidden");
 
     const adminClient = createClient(
       process.env.VITE_SUPABASE_URL!,
@@ -113,8 +178,13 @@ export const uploadTaskAttachment = createServerFn({ method: "POST" as const })
       .eq("id", user.id)
       .single();
     const isAdmin = profile?.role === "admin";
-    const isLead = profile?.role === "team_lead" && profile.department_id === task.department_id;
-    if (task.assigned_to !== user.id && !isAdmin && !isLead) {
+    const perms = await getUserPermissionIds(userClient, user.id);
+    const sameDept = profile?.department_id === task.department_id;
+    const canUpload =
+      task.assigned_to === user.id ||
+      isAdmin ||
+      (sameDept && (perms.has("tasks_upload_files") || perms.has("dashboard_department_tasks")));
+    if (!canUpload) {
       throw new Error("Forbidden: you do not have access to this task");
     }
 
@@ -190,8 +260,13 @@ export const getTaskAttachmentSignedUrls = createServerFn({ method: "POST" as co
       .eq("id", user.id)
       .single();
     const isAdmin = profile?.role === "admin";
-    const isLead = profile?.role === "team_lead" && profile.department_id === task.department_id;
-    if (task.assigned_to !== user.id && !isAdmin && !isLead) {
+    const perms = await getUserPermissionIds(userClient, user.id);
+    const sameDept = profile?.department_id === task.department_id;
+    const canView =
+      task.assigned_to === user.id ||
+      isAdmin ||
+      (sameDept && (perms.has("tasks_upload_files") || perms.has("dashboard_department_tasks")));
+    if (!canView) {
       throw new Error("Forbidden: you do not have access to this task");
     }
 

@@ -83,7 +83,7 @@ const STATUS_STYLES: Record<TaskStatus, string> = {
 
 function TaskDetail() {
   const { id } = Route.useParams();
-  const { currentUser, currentRole } = useApp();
+  const { currentUser, currentRole, hasPermission } = useApp();
   const { data: task, isLoading } = useTask(id);
   const submitTask = useSubmitTask();
   const withdrawSubmission = useWithdrawSubmission();
@@ -145,7 +145,7 @@ function TaskDetail() {
     task.status === "waiting_review" &&
     task.approval_required &&
     (currentRole === "admin" ||
-      (currentRole === "team_lead" &&
+      (hasPermission("tasks_review") &&
         currentUser != null &&
         task.assigned_to !== currentUser.id));
 

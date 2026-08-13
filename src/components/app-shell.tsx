@@ -55,6 +55,13 @@ const adminNav: NavItem[] = [
   { to: "/admin/roles",       label: "Roles & Permissions",  icon: CheckCircle2 },
 ];
 
+const ADMIN_NAV_PERMISSIONS: Record<string, string> = {
+  "/admin/brands": "admin_manage_brands",
+  "/admin/departments": "admin_manage_departments",
+  "/admin/employees": "admin_manage_employees",
+  "/admin/roles": "admin_assign_permissions",
+};
+
 export function AppShell() {
   return (
     <div className="flex min-h-screen bg-background">
@@ -120,7 +127,7 @@ function BottomTab({ item, active }: { item: NavItem; active: boolean }) {
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { currentBrandId, setCurrentBrandId, currentRole, currentUser } = useApp();
+  const { currentBrandId, setCurrentBrandId, currentRole, currentUser, hasPermission } = useApp();
   const { data: brands = [] } = useBrands();
   const [showMore, setShowMore]   = useState(() => moreNav.some((i) => pathname.startsWith(i.to)));
   const [showAdmin, setShowAdmin] = useState(() => pathname.startsWith("/admin"));
@@ -131,6 +138,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     : brands;
 
   const currentBrand = brands.find((b) => b.id === currentBrandId);
+
+  const visibleAdminNav = adminNav.filter((i) =>
+    currentRole === "admin" || hasPermission(ADMIN_NAV_PERMISSIONS[i.to]),
+  );
 
   return (
     <>
@@ -194,7 +205,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </button>
         {showMore && <NavList items={moreNav} pathname={pathname} onNavigate={onNavigate} />}
 
-        {currentRole === "admin" && (
+        {visibleAdminNav.length > 0 && (
           <>
             <button
               type="button"
@@ -204,7 +215,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               Admin
               <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !showAdmin && "-rotate-90")} />
             </button>
-            {showAdmin && <NavList items={adminNav} pathname={pathname} onNavigate={onNavigate} />}
+            {showAdmin && <NavList items={visibleAdminNav} pathname={pathname} onNavigate={onNavigate} />}
           </>
         )}
       </nav>

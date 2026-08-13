@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import type { SystemRole } from "./database.types";
 import { supabase } from "./supabase";
 
@@ -11,6 +12,7 @@ type Profile = {
   department_id: string | null;
   avatar_color: string;
   brandIds: string[];
+  permissions: string[];
 };
 
 type AppContextType = {
@@ -19,6 +21,7 @@ type AppContextType = {
   currentRole: SystemRole;
   isLoading: boolean;
   setCurrentBrandId: (id: string) => void;
+  hasPermission: (permission: string) => boolean;
 };
 
 const AppContext = createContext<AppContextType>({
@@ -27,6 +30,7 @@ const AppContext = createContext<AppContextType>({
   currentRole: "team_member",
   isLoading: true,
   setCurrentBrandId: () => {},
+  hasPermission: () => false,
 });
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -38,7 +42,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async function loadProfile(userId: string) {
       const { data } = await supabase
         .from("profiles")
-        .select("*, profile_brands(brand_id)")
+        .select("*, profile_brands(brand_id), profile_permissions(permission_id)")
         .eq("id", userId)
         .single();
 
@@ -46,6 +50,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const d = data as any;
         const brandIds: string[] = (d.profile_brands ?? []).map((pb: { brand_id: string }) => pb.brand_id);
+        const permissions: string[] = (d.profile_permissions ?? []).map(
+          (pp: { permission_id: string }) => pp.permission_id,
+        );
         setCurrentUser({
           id: d.id,
           name: d.name,
@@ -55,6 +62,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           department_id: d.department_id,
           avatar_color: d.avatar_color,
           brandIds,
+          permissions,
         });
         // Default to first brand the user belongs to
         if (brandIds.length > 0 && !brandIds.includes(currentBrandId)) {
@@ -93,6 +101,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         currentRole: currentUser?.role ?? "team_member",
         isLoading,
         setCurrentBrandId,
+        hasPermission: (permission: string) =>
+          currentUser?.role === "admin" ||
+          (currentUser?.permissions ?? []).includes(permission),
       }}
     >
       {children}
@@ -102,4 +113,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 export function useApp() {
   return useContext(AppContext);
+}
+
+export function useRequirePermission(permission: string) {
+  const { currentUser, currentRole, isLoading } = useApp();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!currentUser || !(currentRole === "admin" || hasAppPermission(currentUser, permission))) {
+      navigate({ to: "/dashboard" });
+    }
+  }, [isLoading, currentUser, currentRole, permission, navigate]);
+
+  return isLoading ||
+    !currentUser ||
+    !(currentRole === "admin" || hasAppPermission(currentUser, permission));
+}
+
+function hasAppPermission(user: Profile, permission: string) {
+  return (user.permissions ?? []).includes(permission);
 }
