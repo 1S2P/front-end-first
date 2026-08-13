@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../supabase";
 
@@ -243,4 +244,61 @@ export function useDeleteWorkflowTemplate() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["workflows"] }),
   });
+}
+
+export type WorkflowStatusRow = {
+  instance_id: string;
+  workflow_name: string;
+  project_name: string;
+  brand_id: string;
+  department_name: string | null;
+  current_step_name: string | null;
+  step_order: number;
+  total_steps: number;
+  task_id: string;
+  task_title: string;
+  assigned_to: string | null;
+  assignee_name: string | null;
+  assignee_initials: string | null;
+  assignee_avatar_color: string | null;
+  step_started_at: string;
+  step_due_at: string | null;
+  hours_in_step: number;
+  is_overdue: boolean;
+  instance_status: string;
+};
+
+export function useWorkflowStatusBoard(brandId: string | null) {
+  const qc = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["workflow-status-board", brandId],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_workflow_status_board", {
+        p_brand_id: brandId,
+      });
+      if (error) throw error;
+      return (data ?? []) as WorkflowStatusRow[];
+    },
+  });
+
+  // Realtime: any change to tasks in this brand refreshes the board (same
+  // postgres_changes pattern as notifications.ts).
+  useEffect(() => {
+    if (!brandId) return;
+    const channel = supabase
+      .channel(`workflow-status-board-${brandId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tasks", filter: `brand_id=eq.${brandId}` },
+        () => qc.invalidateQueries({ queryKey: ["workflow-status-board", brandId] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [brandId, qc]);
+
+  return query;
 }

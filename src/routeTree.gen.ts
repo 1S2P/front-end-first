@@ -31,6 +31,7 @@ import { Route as ShellTasksIndexRouteImport } from './routes/_shell.tasks.index
 import { Route as ShellTasksIdRouteImport } from './routes/_shell.tasks.$id'
 import { Route as ShellWorkflowsIndexRouteImport } from './routes/_shell.workflows.index'
 import { Route as ShellWorkflowsBuilderRouteImport } from './routes/_shell.workflows.builder'
+import { Route as ShellWorkflowsStatusRouteImport } from './routes/_shell.workflows.status'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -141,6 +142,11 @@ const ShellWorkflowsBuilderRoute = ShellWorkflowsBuilderRouteImport.update({
   path: '/builder',
   getParentRoute: () => ShellWorkflowsRoute,
 } as any)
+const ShellWorkflowsStatusRoute = ShellWorkflowsStatusRouteImport.update({
+  id: '/status',
+  path: '/status',
+  getParentRoute: () => ShellWorkflowsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -161,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/team-lead': typeof ShellDashboardTeamLeadRoute
   '/tasks/$id': typeof ShellTasksIdRoute
   '/workflows/builder': typeof ShellWorkflowsBuilderRoute
+  '/workflows/status': typeof ShellWorkflowsStatusRoute
   '/dashboard/': typeof ShellDashboardIndexRoute
   '/tasks/': typeof ShellTasksIndexRoute
   '/workflows/': typeof ShellWorkflowsIndexRoute
@@ -181,6 +188,7 @@ export interface FileRoutesByTo {
   '/dashboard/team-lead': typeof ShellDashboardTeamLeadRoute
   '/tasks/$id': typeof ShellTasksIdRoute
   '/workflows/builder': typeof ShellWorkflowsBuilderRoute
+  '/workflows/status': typeof ShellWorkflowsStatusRoute
   '/dashboard': typeof ShellDashboardIndexRoute
   '/tasks': typeof ShellTasksIndexRoute
   '/workflows': typeof ShellWorkflowsIndexRoute
@@ -206,6 +214,7 @@ export interface FileRoutesById {
   '/_shell/dashboard/team-lead': typeof ShellDashboardTeamLeadRoute
   '/_shell/tasks/$id': typeof ShellTasksIdRoute
   '/_shell/workflows/builder': typeof ShellWorkflowsBuilderRoute
+  '/_shell/workflows/status': typeof ShellWorkflowsStatusRoute
   '/_shell/dashboard/': typeof ShellDashboardIndexRoute
   '/_shell/tasks/': typeof ShellTasksIndexRoute
   '/_shell/workflows/': typeof ShellWorkflowsIndexRoute
@@ -231,6 +240,7 @@ export interface FileRouteTypes {
     | '/dashboard/team-lead'
     | '/tasks/$id'
     | '/workflows/builder'
+    | '/workflows/status'
     | '/dashboard/'
     | '/tasks/'
     | '/workflows/'
@@ -251,6 +261,7 @@ export interface FileRouteTypes {
     | '/dashboard/team-lead'
     | '/tasks/$id'
     | '/workflows/builder'
+    | '/workflows/status'
     | '/dashboard'
     | '/tasks'
     | '/workflows'
@@ -275,6 +286,7 @@ export interface FileRouteTypes {
     | '/_shell/dashboard/team-lead'
     | '/_shell/tasks/$id'
     | '/_shell/workflows/builder'
+    | '/_shell/workflows/status'
     | '/_shell/dashboard/'
     | '/_shell/tasks/'
     | '/_shell/workflows/'
@@ -443,6 +455,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellWorkflowsBuilderRouteImport
       parentRoute: typeof ShellWorkflowsRoute
     }
+    '/_shell/workflows/status': {
+      id: '/_shell/workflows/status'
+      path: '/status'
+      fullPath: '/workflows/status'
+      preLoaderRoute: typeof ShellWorkflowsStatusRouteImport
+      parentRoute: typeof ShellWorkflowsRoute
+    }
   }
 }
 
@@ -496,11 +515,13 @@ const ShellTasksRouteWithChildren = ShellTasksRoute._addFileChildren(
 
 interface ShellWorkflowsRouteChildren {
   ShellWorkflowsBuilderRoute: typeof ShellWorkflowsBuilderRoute
+  ShellWorkflowsStatusRoute: typeof ShellWorkflowsStatusRoute
   ShellWorkflowsIndexRoute: typeof ShellWorkflowsIndexRoute
 }
 
 const ShellWorkflowsRouteChildren: ShellWorkflowsRouteChildren = {
   ShellWorkflowsBuilderRoute: ShellWorkflowsBuilderRoute,
+  ShellWorkflowsStatusRoute: ShellWorkflowsStatusRoute,
   ShellWorkflowsIndexRoute: ShellWorkflowsIndexRoute,
 }
 

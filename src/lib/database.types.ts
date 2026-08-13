@@ -266,6 +266,30 @@ export interface Database {
       is_admin: { Args: Record<never, never>; Returns: boolean };
       get_my_role: { Args: Record<never, never>; Returns: SystemRole };
       has_permission: { Args: { p_permission: string }; Returns: boolean };
+      get_workflow_status_board: {
+        Args: { p_brand_id?: string | null };
+        Returns: Array<{
+          instance_id: string;
+          workflow_name: string;
+          project_name: string;
+          brand_id: string;
+          department_name: string | null;
+          current_step_name: string | null;
+          step_order: number;
+          total_steps: number;
+          task_id: string;
+          task_title: string;
+          assigned_to: string | null;
+          assignee_name: string | null;
+          assignee_initials: string | null;
+          assignee_avatar_color: string | null;
+          step_started_at: string;
+          step_due_at: string | null;
+          hours_in_step: number;
+          is_overdue: boolean;
+          instance_status: string;
+        }>;
+      };
     };
   };
 }

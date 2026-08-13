@@ -29,6 +29,7 @@ import {
   Workflow,
   Play,
   Calendar,
+  Activity,
 } from "lucide-react";
 import { useState } from "react";
 import { useApp } from "@/lib/app-context";
@@ -141,14 +142,22 @@ function WorkflowLibrary() {
         title="Workflow Library"
         description="Reusable templates. Design once, use unlimited times."
         actions={
-          canCreate ? (
-            <Button asChild>
-              <Link to="/workflows/builder">
-                <Plus className="mr-1.5 h-4 w-4" />
-                New Workflow
+          <>
+            <Button asChild variant="outline">
+              <Link to="/workflows/status">
+                <Activity className="mr-1.5 h-4 w-4" />
+                Where's it at?
               </Link>
             </Button>
-          ) : undefined
+            {canCreate ? (
+              <Button asChild>
+                <Link to="/workflows/builder">
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  New Workflow
+                </Link>
+              </Button>
+            ) : undefined}
+          </>
         }
       />
       <div className="mb-6 max-w-sm">
