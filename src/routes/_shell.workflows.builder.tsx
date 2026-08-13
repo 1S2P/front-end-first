@@ -114,7 +114,7 @@ function WorkflowBuilder() {
       assignedUserId: null,
       approvalRequired: false,
       estimatedTime: "1h",
-      deadline: "24",
+      deadline: "3",
       checklist: [],
       position: { x: 0, y: afterIndex !== undefined ? afterIndex + 1 : steps.length },
     };
@@ -576,7 +576,7 @@ function WorkflowBuilder() {
                       </Select>
                     </Field>
                     <div className="grid grid-cols-2 gap-3">
-                      <Field label="Est. Time">
+                      <Field label="Est. Time" hint="How long the task should take. Informational — shown on the task, does not affect the deadline.">
                         <Input
                           value={selectedStep.estimatedTime}
                           onChange={(e) =>
@@ -587,13 +587,14 @@ function WorkflowBuilder() {
                           placeholder="e.g. 4h"
                         />
                       </Field>
-                      <Field label="Deadline">
+                      <Field label="Deadline (days)" hint="Number of days from the start date (or from the previous step).">
                         <Input
                           value={selectedStep.deadline}
                           onChange={(e) =>
                             updateStep(selectedStep.id, { deadline: e.target.value })
                           }
-                          placeholder="e.g. 24 hours, 2 days"
+                          placeholder="e.g. 3"
+                          inputMode="numeric"
                         />
                       </Field>
                     </div>
@@ -688,11 +689,20 @@ function WorkflowBuilder() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
       {children}
+      {hint && <p className="text-[11px] leading-snug text-muted-foreground">{hint}</p>}
     </div>
   );
 }
