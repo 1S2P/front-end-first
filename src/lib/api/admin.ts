@@ -153,6 +153,7 @@ export function useCreateDepartment() {
 export function useProfiles(brandId?: string) {
   return useQuery({
     queryKey: ["profiles", brandId],
+    staleTime: 30_000,
     queryFn: async () => {
       if (brandId) {
         const { data: brandProfiles, error: bpErr } = await supabase
@@ -166,7 +167,7 @@ export function useProfiles(brandId?: string) {
 
         const { data, error } = await supabase
           .from("profiles")
-          .select("*, departments(id, name)")
+          .select("*, departments(id, name), profile_brands(brand_id)")
           .in("id", profileIds)
           .order("name");
         if (error) throw error;
@@ -175,7 +176,7 @@ export function useProfiles(brandId?: string) {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("*, departments(id, name)")
+        .select("*, departments(id, name), profile_brands(brand_id)")
         .order("name");
       if (error) throw error;
       return data;
@@ -194,7 +195,7 @@ export function useUpdateProfile() {
       updates: {
         name?: string;
         role?: SystemRole;
-        department_id?: string;
+        department_id?: string | null;
         avatar_color?: string;
         brandIds?: string[];
       };
@@ -258,11 +259,13 @@ export function useInviteUser() {
 export function useProjects(brandId?: string) {
   return useQuery({
     queryKey: ["projects", brandId],
+    staleTime: 30_000,
     queryFn: async () => {
       let q = supabase
         .from("projects")
         .select("*, brands(id, name, initials, color)")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(200);
       if (brandId) q = q.eq("brand_id", brandId);
       const { data, error } = await q;
       if (error) throw error;
@@ -275,6 +278,7 @@ export function useProject(id: string) {
   return useQuery({
     queryKey: ["project", id],
     enabled: !!id,
+    staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects")
@@ -329,8 +333,9 @@ export function useUpdateProject() {
 export function useReportStats(brandId?: string) {
   return useQuery({
     queryKey: ["reports", brandId],
+    staleTime: 60_000,
     queryFn: async () => {
-      let q = supabase.from("tasks").select("status, department_id, assigned_to, due_date");
+      let q = supabase.from("tasks").select("status, department_id, due_date");
       if (brandId) q = q.eq("brand_id", brandId);
       const { data, error } = await q;
       if (error) throw error;

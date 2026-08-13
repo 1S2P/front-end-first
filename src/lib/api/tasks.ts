@@ -65,6 +65,7 @@ const TASK_LIST_SELECT = `
 export function useMyTasks(brandId?: string) {
   return useQuery({
     queryKey: ["tasks", "mine", brandId],
+    staleTime: 15_000,
     queryFn: async () => {
       const { data: session } = await supabase.auth.getSession();
       let q = supabase
@@ -84,6 +85,7 @@ export function useDepartmentTasks(departmentId: string, brandId?: string) {
   return useQuery({
     queryKey: ["tasks", "department", departmentId, brandId],
     enabled: !!departmentId,
+    staleTime: 15_000,
     queryFn: async () => {
       let q = supabase
         .from("tasks")
@@ -102,6 +104,7 @@ export function useProjectTasks(projectId: string) {
   return useQuery({
     queryKey: ["tasks", "project", projectId],
     enabled: !!projectId,
+    staleTime: 15_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
@@ -118,6 +121,7 @@ export function useTask(id: string) {
   return useQuery({
     queryKey: ["task", id],
     enabled: !!id,
+    staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
@@ -133,6 +137,7 @@ export function useTask(id: string) {
 export function useMyActionableTaskCount(brandId?: string) {
   return useQuery({
     queryKey: ["tasks", "mine", "actionable-count", brandId],
+    staleTime: 15_000,
     queryFn: async () => {
       const { data: session } = await supabase.auth.getSession();
       let q = supabase
@@ -168,6 +173,7 @@ export function useAllBrandTasks(brandId?: string, options?: { enabled?: boolean
   return useQuery({
     queryKey: ["tasks", "all", brandId],
     enabled: options?.enabled ?? true,
+    staleTime: 15_000,
     queryFn: async () => {
       let q = supabase.from("tasks").select(TASK_LIST_SELECT).order("created_at", { ascending: false });
       if (brandId) q = q.eq("brand_id", brandId);
@@ -181,6 +187,7 @@ export function useAllBrandTasks(brandId?: string, options?: { enabled?: boolean
 export function usePendingReviews(brandId?: string) {
   return useQuery({
     queryKey: ["tasks", "pending-review", brandId],
+    staleTime: 15_000,
     queryFn: async () => {
       let q = supabase
         .from("tasks")
@@ -198,6 +205,7 @@ export function usePendingReviews(brandId?: string) {
 export function useReassignedTasks(brandId?: string) {
   return useQuery({
     queryKey: ["tasks", "reassigned", brandId],
+    staleTime: 15_000,
     queryFn: async () => {
       let q = supabase
         .from("tasks")
@@ -391,6 +399,7 @@ export function useRevisionAssignee(task: TaskRow) {
   return useQuery({
     queryKey: ["revision-assignee", task?.id],
     enabled: !!task?.workflow_instance_id,
+    staleTime: 60_000,
     queryFn: async () => {
       const { data: instance } = await supabase
         .from("workflow_instances")
@@ -466,6 +475,7 @@ export function useWorkflowProgress(task?: Pick<TaskWithRelations, "workflow_ins
   return useQuery({
     queryKey: ["task", "workflow", task?.workflow_instance_id],
     enabled: !!task?.workflow_instance_id,
+    staleTime: 60_000,
     queryFn: async (): Promise<WorkflowProgress | null> => {
       const instanceId = task!.workflow_instance_id!;
 

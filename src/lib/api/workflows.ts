@@ -16,11 +16,13 @@ const TEMPLATE_SELECT = `
 export function useWorkflowTemplates(brandId?: string) {
   return useQuery({
     queryKey: ["workflows", "templates", brandId],
+    staleTime: 30_000,
     queryFn: async () => {
       let q = supabase
         .from("workflow_templates")
         .select(TEMPLATE_SELECT)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(200);
       if (brandId) q = q.eq("brand_id", brandId);
       const { data, error } = await q;
       if (error) throw error;
@@ -33,6 +35,7 @@ export function useWorkflowTemplate(id: string) {
   return useQuery({
     queryKey: ["workflow", "template", id],
     enabled: !!id,
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workflow_templates")
@@ -48,13 +51,15 @@ export function useWorkflowTemplate(id: string) {
 export function useWorkflowInstances(brandId?: string) {
   return useQuery({
     queryKey: ["workflows", "instances", brandId],
+    staleTime: 30_000,
     queryFn: async () => {
       let q = supabase
         .from("workflow_instances")
         .select(
           `*, workflow_templates(id, name), projects(id, name), brands(id, name, initials, color)`,
         )
-        .order("started_at", { ascending: false });
+        .order("started_at", { ascending: false })
+        .limit(200);
       if (brandId) q = q.eq("brand_id", brandId);
       const { data, error } = await q;
       if (error) throw error;

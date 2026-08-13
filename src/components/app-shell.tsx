@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { useState, lazy, Suspense, type ReactNode } from "react";
 import {
   LayoutDashboard,
   ListTodo,
@@ -33,7 +33,10 @@ import { useUnreadCount } from "@/lib/api/notifications";
 import { useTaskBadgeCount } from "@/lib/api/tasks";
 import { useSignOut } from "@/lib/api/auth";
 import { cn } from "@/lib/utils";
-import { GlobalSearch } from "@/components/global-search";
+
+const GlobalSearch = lazy(() =>
+  import("@/components/global-search").then((m) => ({ default: m.GlobalSearch })),
+);
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
 
@@ -372,7 +375,9 @@ function TopBar() {
       </div>
 
       <div className="relative ml-2 hidden max-w-md flex-1 md:block">
-        <GlobalSearch />
+        <Suspense fallback={<div className="h-9 w-full max-w-md rounded-lg bg-muted/60" />}>
+          <GlobalSearch />
+        </Suspense>
       </div>
 
       <div className="ml-auto flex items-center gap-1">

@@ -206,10 +206,7 @@ function WorkflowBuilder() {
     }
   };
 
-  const filteredUsers = profiles.filter((u) => {
-    if (!selectedStep) return false;
-    return u.department_id === selectedStep.departmentId || !selectedStep.departmentId;
-  });
+  const filteredUsers = profiles;
 
   if (denied) return null;
 
