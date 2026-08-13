@@ -62,7 +62,7 @@ type StepNode = {
 
 function WorkflowBuilder() {
   const { templateId } = Route.useSearch();
-  const denied = useRequirePermission("workflow_builder_access");
+  const denied = useRequirePermission(["workflow_builder_access", "workflow_create", "workflow_edit"]);
   const { currentBrandId } = useApp();
   const { data: departments = [] } = useDepartments(currentBrandId);
   const { data: profiles = [] } = useProfiles(currentBrandId);

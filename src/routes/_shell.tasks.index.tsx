@@ -20,6 +20,7 @@ import {
   useDepartmentTasks,
   usePendingReviews,
   useReassignedTasks,
+  useAllBrandTasks,
 } from "@/lib/api/tasks";
 import { useDepartments } from "@/lib/api/admin";
 import { TASK_STATUS_LABELS, BOARD_COLUMNS, type TaskStatus } from "@/lib/types";
@@ -84,12 +85,15 @@ type SupabaseTask = {
 
 function MyTasks() {
   const [view, setView] = useState<"list" | "board">("board");
-  const [activeTab, setActiveTab] = useState<"my" | "dept" | "reviews" | "reassigned">("my");
+  const [activeTab, setActiveTab] = useState<"my" | "dept" | "reviews" | "reassigned" | "today" | "completed">("my");
   const { currentUser, currentBrandId, currentRole, hasPermission } = useApp();
+  const isAdmin = currentRole === "admin";
   const { data: myTasks = [], isLoading } = useMyTasks(currentBrandId);
-  const { data: pendingReviews = [] } = usePendingReviews();
-  const { data: reassignedTasks = [] } = useReassignedTasks();
+  const { data: pendingReviews = [] } = usePendingReviews(currentBrandId);
+  const { data: reassignedTasks = [] } = useReassignedTasks(currentBrandId);
   const { data: departments = [] } = useDepartments(currentBrandId);
+  const { data: deptTasks = [] } = useDepartmentTasks(currentUser?.department_id ?? "", currentBrandId);
+  const { data: allBrandTasks = [] } = useAllBrandTasks(currentBrandId, { enabled: isAdmin });
 
   if (!currentUser) {
     return (
@@ -99,55 +103,62 @@ function MyTasks() {
     );
   }
 
-  const canSeeDept = currentRole === "admin" || hasPermission("dashboard_department_tasks");
-  const canReviewTasks = currentRole === "admin" || hasPermission("tasks_review");
+  const canSeeDept = isAdmin || hasPermission("dashboard_department_tasks");
+  const canReviewTasks = isAdmin || hasPermission("tasks_review");
 
-  const deptTasks =
-    activeTab === "dept" && canSeeDept
-      ? pendingReviews.filter((t) => t.department_id === currentUser.department_id)
-      : [];
+  const departmentTasks = isAdmin ? allBrandTasks : deptTasks;
+
+  const reviewQueue = isAdmin
+    ? pendingReviews
+    : pendingReviews.filter((t) => t.assigned_to !== currentUser.id);
+
+  const reassignedMine = reassignedTasks.filter((t) => t.assigned_to === currentUser.id);
 
   const today = new Date().toISOString().split("T")[0];
-  const dueToday = myTasks.filter((t) => t.due_date === today && t.status !== "completed");
+  const dueToday = myTasks.filter(
+    (t) => t.due_date === today && !["completed", "approved", "rejected"].includes(t.status),
+  );
+  const completedTasks = myTasks.filter((t) => t.status === "completed");
 
   const dept = departments.find((d) => d.id === currentUser.department_id);
 
-  const getDisplayTasks = () => {
+  const tabTitle = (() => {
     switch (activeTab) {
       case "reviews":
-        return pendingReviews;
+        return "Pending Reviews";
       case "dept":
-        return deptTasks;
+        return `${dept?.name || "Department"} Tasks`;
       case "reassigned":
-        return reassignedTasks.filter((t) => t.status === "needs_revision");
+        return "Re-assigned Tasks";
+      case "today":
+        return "Due Today";
+      case "completed":
+        return "Completed";
       default:
-        return myTasks;
+        return "My Tasks";
     }
-  };
+  })();
 
-  const displayTasks = getDisplayTasks();
+  const tabDescription = (() => {
+    switch (activeTab) {
+      case "reviews":
+        return "Tasks waiting for your review.";
+      case "dept":
+        return `All tasks in ${dept?.name || "your department"}.`;
+      case "reassigned":
+        return "Tasks sent back by reviewers for rework.";
+      case "today":
+        return "Your tasks due today.";
+      case "completed":
+        return "Your completed tasks.";
+      default:
+        return "View and manage your assigned tasks.";
+    }
+  })();
 
   return (
     <>
-      <PageHeader
-        title={
-          activeTab === "reviews"
-            ? "Pending Reviews"
-            : activeTab === "dept"
-              ? `${dept?.name || "Department"} Tasks`
-              : activeTab === "reassigned"
-                ? "Re-assigned Tasks"
-                : "My Tasks"
-        }
-        description={
-          activeTab === "reviews"
-            ? "Tasks waiting for your review."
-            : activeTab === "dept"
-              ? `All tasks in ${dept?.name || "your department"}.`
-              : activeTab === "reassigned"
-                ? "Tasks sent back by reviewers for rework."
-                : "View and manage your assigned tasks."
-        }
+      <PageHeader title={tabTitle} description={tabDescription}
         actions={
           <div className="flex gap-1 rounded-lg border border-border bg-card p-1">
             <Button
@@ -171,7 +182,9 @@ function MyTasks() {
       />
       <Tabs
         value={activeTab}
-        onValueChange={(v) => setActiveTab(v as "my" | "dept" | "reviews" | "reassigned")}
+        onValueChange={(v) =>
+          setActiveTab(v as "my" | "dept" | "reviews" | "reassigned" | "today" | "completed")
+        }
       >
         <TabsList>
           <TabsTrigger value="my">My Tasks</TabsTrigger>
@@ -179,22 +192,29 @@ function MyTasks() {
           {canReviewTasks && (
             <TabsTrigger value="reviews">
               Pending Reviews
-              {pendingReviews.length > 0 && (
+              {reviewQueue.length > 0 && (
                 <Badge variant="destructive" className="ml-1.5 text-[10px] h-5 px-1.5">
-                  {pendingReviews.length}
+                  {reviewQueue.length}
                 </Badge>
               )}
             </TabsTrigger>
           )}
           <TabsTrigger value="reassigned">
             Re-assigned
-            {reassignedTasks.filter((t) => t.status === "needs_revision").length > 0 && (
+            {reassignedMine.length > 0 && (
               <Badge variant="secondary" className="ml-1.5 text-[10px] h-5 px-1.5">
-                {reassignedTasks.filter((t) => t.status === "needs_revision").length}
+                {reassignedMine.length}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="today">Due Today</TabsTrigger>
+          <TabsTrigger value="today">
+            Due Today
+            {dueToday.length > 0 && (
+              <Badge variant="destructive" className="ml-1.5 text-[10px] h-5 px-1.5">
+                {dueToday.length}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
         </TabsList>
         <TabsContent value="my" className="mt-4">
@@ -209,35 +229,41 @@ function MyTasks() {
         {canSeeDept && (
           <TabsContent value="dept" className="mt-4">
             {view === "board" ? (
-              <BoardView tasks={deptTasks} showAssignee={true} />
+              <BoardView tasks={departmentTasks} showAssignee={true} />
             ) : (
-              <ListView tasks={deptTasks} showAssignee={true} />
+              <ListView tasks={departmentTasks} showAssignee={true} />
             )}
           </TabsContent>
         )}
         {canReviewTasks && (
           <TabsContent value="reviews" className="mt-4">
             {view === "board" ? (
-              <BoardView tasks={pendingReviews} showAssignee={true} />
+              <BoardView tasks={reviewQueue} showAssignee={true} />
             ) : (
-              <ListView tasks={pendingReviews} showAssignee={true} />
+              <ListView tasks={reviewQueue} showAssignee={true} />
             )}
           </TabsContent>
         )}
         <TabsContent value="reassigned" className="mt-4">
-          <ListView
-            tasks={reassignedTasks.filter((t) => t.status === "needs_revision")}
-            showAssignee={canSeeDept}
-          />
+          {view === "board" ? (
+            <BoardView tasks={reassignedMine} showAssignee={false} />
+          ) : (
+            <ListView tasks={reassignedMine} showAssignee={false} />
+          )}
         </TabsContent>
         <TabsContent value="today" className="mt-4">
-          <ListView tasks={dueToday} showAssignee={canSeeDept} />
+          {view === "board" ? (
+            <BoardView tasks={dueToday} showAssignee={false} />
+          ) : (
+            <ListView tasks={dueToday} showAssignee={false} />
+          )}
         </TabsContent>
         <TabsContent value="completed" className="mt-4">
-          <ListView
-            tasks={myTasks.filter((t) => t.status === "completed")}
-            showAssignee={canSeeDept}
-          />
+          {view === "board" ? (
+            <BoardView tasks={completedTasks} showAssignee={false} />
+          ) : (
+            <ListView tasks={completedTasks} showAssignee={false} />
+          )}
         </TabsContent>
       </Tabs>
     </>

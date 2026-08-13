@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../supabase";
+import { useApp } from "../app-context";
 import type { TaskStatus, TaskPriority, Database } from "../database.types";
 
 type TaskRow = Database["public"]["Tables"]["tasks"]["Row"];
@@ -129,30 +130,82 @@ export function useTask(id: string) {
   });
 }
 
-export function usePendingReviews() {
+export function useMyActionableTaskCount(brandId?: string) {
   return useQuery({
-    queryKey: ["tasks", "pending-review"],
+    queryKey: ["tasks", "mine", "actionable-count", brandId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: session } = await supabase.auth.getSession();
+      let q = supabase
         .from("tasks")
-        .select(TASK_LIST_SELECT)
-        .eq("status", "waiting_review")
-        .order("submitted_at", { ascending: true });
+        .select("id", { count: "exact", head: true })
+        .eq("assigned_to", session.session!.user.id)
+        .in("status", ["ready", "in_progress", "needs_revision"]);
+      if (brandId) q = q.eq("brand_id", brandId);
+      const { count, error } = await q;
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+}
+
+export function useTaskBadgeCount(brandId?: string) {
+  const { currentUser, currentRole, hasPermission } = useApp();
+  const { data: myActionableCount = 0 } = useMyActionableTaskCount(brandId);
+  const { data: pendingReviews = [] } = usePendingReviews(brandId);
+
+  const canReviewTasks = currentRole === "admin" || hasPermission("tasks_review");
+  if (!canReviewTasks) return myActionableCount;
+
+  const reviewCount =
+    currentRole === "admin"
+      ? pendingReviews.length
+      : pendingReviews.filter((t) => t.assigned_to !== currentUser?.id).length;
+
+  return myActionableCount + reviewCount;
+}
+
+export function useAllBrandTasks(brandId?: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["tasks", "all", brandId],
+    enabled: options?.enabled ?? true,
+    queryFn: async () => {
+      let q = supabase.from("tasks").select(TASK_LIST_SELECT).order("created_at", { ascending: false });
+      if (brandId) q = q.eq("brand_id", brandId);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
   });
 }
 
-export function useReassignedTasks() {
+export function usePendingReviews(brandId?: string) {
   return useQuery({
-    queryKey: ["tasks", "reassigned"],
+    queryKey: ["tasks", "pending-review", brandId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
+        .from("tasks")
+        .select(TASK_LIST_SELECT)
+        .eq("status", "waiting_review")
+        .order("submitted_at", { ascending: true });
+      if (brandId) q = q.eq("brand_id", brandId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useReassignedTasks(brandId?: string) {
+  return useQuery({
+    queryKey: ["tasks", "reassigned", brandId],
+    queryFn: async () => {
+      let q = supabase
         .from("tasks")
         .select(TASK_LIST_SELECT)
         .eq("status", "needs_revision")
         .order("created_at", { ascending: false });
+      if (brandId) q = q.eq("brand_id", brandId);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import type { SystemRole } from "./database.types";
 import { supabase } from "./supabase";
@@ -115,22 +115,27 @@ export function useApp() {
   return useContext(AppContext);
 }
 
-export function useRequirePermission(permission: string) {
+export function useRequirePermission(permission: string | string[]) {
   const { currentUser, currentRole, isLoading } = useApp();
   const navigate = useNavigate();
 
+  const allowed = useMemo(() => {
+    if (currentRole === "admin") return true;
+    if (!currentUser) return false;
+    return hasAppPermission(currentUser, permission);
+  }, [currentUser, currentRole, permission]);
+
   useEffect(() => {
     if (isLoading) return;
-    if (!currentUser || !(currentRole === "admin" || hasAppPermission(currentUser, permission))) {
+    if (!currentUser || !allowed) {
       navigate({ to: "/dashboard" });
     }
-  }, [isLoading, currentUser, currentRole, permission, navigate]);
+  }, [isLoading, currentUser, allowed, navigate]);
 
-  return isLoading ||
-    !currentUser ||
-    !(currentRole === "admin" || hasAppPermission(currentUser, permission));
+  return isLoading || !currentUser || !allowed;
 }
 
-function hasAppPermission(user: Profile, permission: string) {
-  return (user.permissions ?? []).includes(permission);
+function hasAppPermission(user: Profile, permission: string | string[]) {
+  const required = Array.isArray(permission) ? permission : [permission];
+  return required.some((p) => (user.permissions ?? []).includes(p));
 }

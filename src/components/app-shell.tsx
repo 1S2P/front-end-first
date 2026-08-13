@@ -30,6 +30,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useApp } from "@/lib/app-context";
 import { useBrands } from "@/lib/api/admin";
 import { useUnreadCount } from "@/lib/api/notifications";
+import { useTaskBadgeCount } from "@/lib/api/tasks";
 import { useSignOut } from "@/lib/api/auth";
 import { cn } from "@/lib/utils";
 import { GlobalSearch } from "@/components/global-search";
@@ -82,6 +83,8 @@ export function AppShell() {
 function BottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
+  const { currentBrandId } = useApp();
+  const taskBadge = useTaskBadgeCount(currentBrandId);
 
   const bottomItems: NavItem[] = [
     { to: "/dashboard", label: "Home",     icon: LayoutDashboard },
@@ -92,7 +95,12 @@ function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around border-t border-border bg-card px-2 lg:hidden">
       {bottomItems.map((i) => (
-        <BottomTab key={i.to} item={i} active={pathname === i.to || pathname.startsWith(i.to + "/")} />
+        <BottomTab
+          key={i.to}
+          item={i}
+          active={pathname === i.to || pathname.startsWith(i.to + "/")}
+          badge={i.to === "/tasks" ? taskBadge : 0}
+        />
       ))}
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
@@ -112,14 +120,21 @@ function BottomNav() {
   );
 }
 
-function BottomTab({ item, active }: { item: NavItem; active: boolean }) {
+function BottomTab({ item, active, badge }: { item: NavItem; active: boolean; badge?: number }) {
   const Icon = item.icon;
   return (
     <Link
       to={item.to}
       className={cn("flex flex-col items-center gap-1 px-3", active ? "text-primary" : "text-muted-foreground")}
     >
-      <Icon className="h-5 w-5" />
+      <div className="relative">
+        <Icon className="h-5 w-5" />
+        {badge && badge > 0 && (
+          <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground">
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
+      </div>
       <span className={cn("text-[10px]", active ? "font-bold" : "font-medium")}>{item.label}</span>
     </Link>
   );
@@ -131,6 +146,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { data: brands = [] } = useBrands();
   const [showMore, setShowMore]   = useState(() => moreNav.some((i) => pathname.startsWith(i.to)));
   const [showAdmin, setShowAdmin] = useState(() => pathname.startsWith("/admin"));
+  const taskBadge = useTaskBadgeCount(currentBrandId);
 
   // Filter to only brands the current user belongs to
   const userBrands = currentUser
@@ -142,6 +158,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const visibleAdminNav = adminNav.filter((i) =>
     currentRole === "admin" || hasPermission(ADMIN_NAV_PERMISSIONS[i.to]),
   );
+
+  const mainNavBadges: Record<string, number> = taskBadge > 0 ? { "/tasks": taskBadge } : {};
 
   return (
     <>
@@ -193,7 +211,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-2">
-        <NavList items={mainNav} pathname={pathname} onNavigate={onNavigate} />
+        <NavList items={mainNav} pathname={pathname} onNavigate={onNavigate} badges={mainNavBadges} />
 
         <button
           type="button"
@@ -288,12 +306,23 @@ function UserMenu() {
   );
 }
 
-function NavList({ items, pathname, onNavigate }: { items: NavItem[]; pathname: string; onNavigate?: () => void }) {
+function NavList({
+  items,
+  pathname,
+  onNavigate,
+  badges,
+}: {
+  items: NavItem[];
+  pathname: string;
+  onNavigate?: () => void;
+  badges?: Record<string, number>;
+}) {
   return (
     <ul className="space-y-0.5 py-1">
       {items.map((item) => {
         const active = pathname === item.to || pathname.startsWith(item.to + "/");
         const Icon = item.icon;
+        const badge = badges?.[item.to] ?? 0;
         return (
           <li key={item.to}>
             <Link
@@ -305,7 +334,12 @@ function NavList({ items, pathname, onNavigate }: { items: NavItem[]; pathname: 
               )}
             >
               <Icon className="h-4 w-4" />
-              {item.label}
+              <span className="flex-1 truncate">{item.label}</span>
+              {badge > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              )}
             </Link>
           </li>
         );
