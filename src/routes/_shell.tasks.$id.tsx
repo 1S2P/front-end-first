@@ -140,9 +140,11 @@ function TaskDetail() {
     task.status !== "completed";
   const canSubmit =
     task.status === "ready" || task.status === "in_progress" || task.status === "needs_revision";
-  const canWithdraw = task.status === "waiting_review" && task.submitted_at;
+  const canWithdraw =
+    task.status === "waiting_review" && !task.reviewed_at && task.submitted_at;
   const canReview =
     task.status === "waiting_review" &&
+    !task.reviewed_at &&
     task.approval_required &&
     (currentRole === "admin" ||
       (hasPermission("tasks_review") &&

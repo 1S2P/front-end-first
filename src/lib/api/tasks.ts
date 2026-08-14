@@ -193,6 +193,7 @@ export function usePendingReviews(brandId?: string) {
         .from("tasks")
         .select(TASK_LIST_SELECT)
         .eq("status", "waiting_review")
+        .is("reviewed_at", null)
         .order("submitted_at", { ascending: true });
       if (brandId) q = q.eq("brand_id", brandId);
       const { data, error } = await q;
@@ -494,7 +495,7 @@ export function useWorkflowProgress(task?: Pick<TaskWithRelations, "workflow_ins
           .order("step_order", { ascending: true }),
         supabase
           .from("tasks")
-          .select("id, status, workflow_step_index, assigned_to")
+          .select("id, status, workflow_step_index, assigned_to, reviewed_at")
           .eq("workflow_instance_id", instanceId)
           .order("workflow_step_index", { ascending: true }),
       ]);
@@ -516,11 +517,16 @@ export function useWorkflowProgress(task?: Pick<TaskWithRelations, "workflow_ins
         .in("id", assigneeIds);
       const profileById = new Map((profilesData ?? []).map((p) => [p.id, p]));
 
-      const firstIncomplete = instanceTasks.find((t) => t.status !== "completed");
+      // A step is "done" for progress purposes once its task is completed OR the
+      // review-required task has been approved (still In Review, but reviewed).
+      const isStepDone = (t: { status: TaskStatus; reviewed_at: string | null } | undefined) =>
+        !!t && (t.status === "completed" || (t.status === "waiting_review" && !!t.reviewed_at));
+
+      const firstIncomplete = instanceTasks.find((t) => !isStepDone(t));
 
       const stepsWithState: WorkflowProgressStep[] = steps.map((s) => {
         const t = instanceTasks.find((task) => task.workflow_step_index === s.step_order);
-        const taskCompleted = t?.status === "completed";
+        const taskCompleted = isStepDone(t);
         const state: "done" | "active" | "pending" = taskCompleted
           ? "done"
           : t && t.id === firstIncomplete?.id

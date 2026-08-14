@@ -17,7 +17,7 @@ export function AdminDashboard() {
   const { data: allTasks = [] } = useMyTasks(currentBrandId);
 
   const runningWorkflows = runningInstances.filter((w) => w.status === "running");
-  const pendingReviews = allTasks.filter((t) => t.status === "waiting_review");
+  const pendingReviews = allTasks.filter((t) => t.status === "waiting_review" && !t.reviewed_at);
   const today = new Date().toISOString().split("T")[0];
   const overdue = allTasks.filter(
     (t) => t.due_date && t.due_date < today && t.status !== "completed",
