@@ -157,7 +157,9 @@ function TaskDetail() {
       toast.success(
         task.approval_required
           ? "Task submitted for review"
-          : "Task completed — moving to next step",
+          : task.workflow_instance_id
+            ? "Task submitted — moving to next step"
+            : "Task completed",
       );
     } catch {
       toast.error("Failed to submit task");
