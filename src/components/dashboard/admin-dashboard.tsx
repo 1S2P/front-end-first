@@ -7,14 +7,14 @@ import { Building2, Users, Workflow, Activity, FolderOpen, ArrowRight } from "lu
 import { useApp } from "@/lib/app-context";
 import { useProjects } from "@/lib/api/admin";
 import { useWorkflowTemplates, useWorkflowInstances } from "@/lib/api/workflows";
-import { useMyTasks } from "@/lib/api/tasks";
+import { useAllBrandTasks } from "@/lib/api/tasks";
 
 export function AdminDashboard() {
   const { currentBrandId } = useApp();
   const { data: brandProjects = [] } = useProjects(currentBrandId);
   const { data: brandWorkflows = [] } = useWorkflowTemplates(currentBrandId);
   const { data: runningInstances = [] } = useWorkflowInstances(currentBrandId);
-  const { data: allTasks = [] } = useMyTasks(currentBrandId);
+  const { data: allTasks = [] } = useAllBrandTasks(currentBrandId, { enabled: true });
 
   const runningWorkflows = runningInstances.filter((w) => w.status === "running");
   const pendingReviews = allTasks.filter((t) => t.status === "waiting_review" && !t.reviewed_at);

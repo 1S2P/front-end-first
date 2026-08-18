@@ -118,7 +118,8 @@ function MyTasks() {
   const dueToday = myTasks.filter(
     (t) => t.due_date === today && !["completed", "approved", "rejected"].includes(t.status),
   );
-  const completedTasks = myTasks.filter((t) => t.status === "completed");
+  const completedTasksSource = isAdmin ? allBrandTasks : myTasks;
+  const completedTasks = completedTasksSource.filter((t) => t.status === "completed");
 
   const dept = departments.find((d) => d.id === currentUser.department_id);
 
@@ -150,7 +151,7 @@ function MyTasks() {
       case "today":
         return "Your tasks due today.";
       case "completed":
-        return "Your completed tasks.";
+        return isAdmin ? "All completed tasks across the workspace." : "Your completed tasks.";
       default:
         return "View and manage your assigned tasks.";
     }
@@ -260,9 +261,9 @@ function MyTasks() {
         </TabsContent>
         <TabsContent value="completed" className="mt-4">
           {view === "board" ? (
-            <BoardView tasks={completedTasks} showAssignee={false} />
+            <BoardView tasks={completedTasks} showAssignee={isAdmin} />
           ) : (
-            <ListView tasks={completedTasks} showAssignee={false} />
+            <ListView tasks={completedTasks} showAssignee={isAdmin} />
           )}
         </TabsContent>
       </Tabs>
