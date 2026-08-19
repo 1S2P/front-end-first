@@ -13,6 +13,9 @@ import {
   Users,
   CheckCircle2,
   LogOut,
+  KeyRound,
+  Building2,
+  ExternalLink,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -27,24 +30,36 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useApp } from "@/lib/app-context";
 import { useBrands } from "@/lib/api/admin";
 import { useUnreadCount } from "@/lib/api/notifications";
 import { useTaskBadgeCount } from "@/lib/api/tasks";
-import { useSignOut } from "@/lib/api/auth";
+import { useSignOut, useChangePassword } from "@/lib/api/auth";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const GlobalSearch = lazy(() =>
   import("@/components/global-search").then((m) => ({ default: m.GlobalSearch })),
 );
 
-type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
+type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; external?: boolean };
 
 const mainNav: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/tasks",     label: "My Tasks",  icon: ListTodo },
   { to: "/projects",  label: "Projects",  icon: Briefcase },
   { to: "/workflows", label: "Workflows", icon: Workflow },
+  { to: "https://employee-task-uh4x.onrender.com/employee/dashboard", label: "Employee Workspace", icon: Building2, external: true },
 ];
 
 const moreNav: NavItem[] = [
@@ -253,10 +268,11 @@ function UserMenu() {
   const { currentUser } = useApp();
   const navigate = useNavigate();
   const signOut = useSignOut();
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut.mutateAsync();
-    navigate({ to: "/login" });
+    navigate({ to: "/login", search: { redirect: "/dashboard" } });
   };
 
   if (!currentUser) {
@@ -272,40 +288,48 @@ function UserMenu() {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="flex w-full items-center gap-3 rounded-lg p-2 hover:bg-sidebar-accent transition-colors"
-        >
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className={cn("text-xs", currentUser.avatar_color)}>
-              {currentUser.initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1 text-left leading-tight">
-            <div className="truncate text-sm font-medium">{currentUser.name}</div>
-            <div className="truncate text-[11px] text-muted-foreground capitalize">
-              {currentUser.role.replace("_", " ")}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center gap-3 rounded-lg p-2 hover:bg-sidebar-accent transition-colors"
+          >
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className={cn("text-xs", currentUser.avatar_color)}>
+                {currentUser.initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1 text-left leading-tight">
+              <div className="truncate text-sm font-medium">{currentUser.name}</div>
+              <div className="truncate text-[11px] text-muted-foreground capitalize">
+                {currentUser.role.replace("_", " ")}
+              </div>
             </div>
-          </div>
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col">
-            <span className="text-sm font-medium">{currentUser.name}</span>
-            <span className="text-xs text-muted-foreground">{currentUser.email}</span>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
-          <LogOut className="mr-2 h-4 w-4" />
-          Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">{currentUser.name}</span>
+              <span className="text-xs text-muted-foreground">{currentUser.email}</span>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setPasswordOpen(true)}>
+            <KeyRound className="mr-2 h-4 w-4" />
+            Change password
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
+    </>
   );
 }
 
@@ -323,9 +347,28 @@ function NavList({
   return (
     <ul className="space-y-0.5 py-1">
       {items.map((item) => {
-        const active = pathname === item.to || pathname.startsWith(item.to + "/");
+        const active = !item.external && (pathname === item.to || pathname.startsWith(item.to + "/"));
         const Icon = item.icon;
         const badge = badges?.[item.to] ?? 0;
+
+        if (item.external) {
+          return (
+            <li key={item.to}>
+              <a
+                href={item.to}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={onNavigate}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors text-sidebar-foreground hover:bg-sidebar-accent"
+              >
+                <Icon className="h-4 w-4" />
+                <span className="flex-1 truncate">{item.label}</span>
+                <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+              </a>
+            </li>
+          );
+        }
+
         return (
           <li key={item.to}>
             <Link
@@ -357,75 +400,84 @@ function TopBar() {
   const unreadCount = useUnreadCount();
   const navigate = useNavigate();
   const signOut = useSignOut();
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const currentBrand = brands.find((b) => b.id === currentBrandId);
 
   const handleSignOut = async () => {
     await signOut.mutateAsync();
-    navigate({ to: "/login" });
+    navigate({ to: "/login", search: { redirect: "/dashboard" } });
   };
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-border bg-background/80 px-3 backdrop-blur-sm sm:px-6">
-      {/* Mobile brand mark */}
-      <div className="lg:hidden">
-        <div className={cn("grid h-8 w-8 place-items-center rounded-lg text-xs font-bold", currentBrand?.color)}>
-          {currentBrand?.initials}
+    <>
+      <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-border bg-background/80 px-3 backdrop-blur-sm sm:px-6">
+        {/* Mobile brand mark */}
+        <div className="lg:hidden">
+          <div className={cn("grid h-8 w-8 place-items-center rounded-lg text-xs font-bold", currentBrand?.color)}>
+            {currentBrand?.initials}
+          </div>
         </div>
-      </div>
 
-      <div className="relative ml-2 hidden max-w-md flex-1 md:block">
-        <Suspense fallback={<div className="h-9 w-full max-w-md rounded-lg bg-muted/60" />}>
-          <GlobalSearch />
-        </Suspense>
-      </div>
-
-      <div className="ml-auto flex items-center gap-1">
-        <Link
-          to="/notifications"
-          className="relative grid h-9 w-9 place-items-center rounded-lg hover:bg-muted transition-colors"
-        >
-          <Bell className="h-4 w-4" />
-          {unreadCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-              {unreadCount}
-            </span>
-          )}
-        </Link>
-
-        <div className="hidden sm:block">
-          {currentUser ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="gap-2 pl-1.5 pr-2">
-                  <Avatar className="h-7 w-7">
-                    <AvatarFallback className={cn("text-xs", currentUser.avatar_color)}>
-                      {currentUser.initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">{currentUser.name}</span>
-                    <span className="text-xs text-muted-foreground">{currentUser.email}</span>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Skeleton className="h-8 w-8 rounded-full" />
-          )}
+        <div className="relative ml-2 hidden max-w-md flex-1 md:block">
+          <Suspense fallback={<div className="h-9 w-full max-w-md rounded-lg bg-muted/60" />}>
+            <GlobalSearch />
+          </Suspense>
         </div>
-      </div>
-    </header>
+
+        <div className="ml-auto flex items-center gap-1">
+          <Link
+            to="/notifications"
+            className="relative grid h-9 w-9 place-items-center rounded-lg hover:bg-muted transition-colors"
+          >
+            <Bell className="h-4 w-4" />
+            {unreadCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                {unreadCount}
+              </span>
+            )}
+          </Link>
+
+          <div className="hidden sm:block">
+            {currentUser ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="gap-2 pl-1.5 pr-2">
+                    <Avatar className="h-7 w-7">
+                      <AvatarFallback className={cn("text-xs", currentUser.avatar_color)}>
+                        {currentUser.initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">{currentUser.name}</span>
+                      <span className="text-xs text-muted-foreground">{currentUser.email}</span>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setPasswordOpen(true)}>
+                    <KeyRound className="mr-2 h-4 w-4" />
+                    Change password
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Skeleton className="h-8 w-8 rounded-full" />
+            )}
+          </div>
+        </div>
+      </header>
+      <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
+    </>
   );
 }
 
@@ -446,5 +498,91 @@ export function PageHeader({
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>
+  );
+}
+
+function ChangePasswordDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const changePassword = useChangePassword();
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+    try {
+      await changePassword.mutateAsync({ password: newPassword });
+      toast.success("Password changed successfully.");
+      setNewPassword("");
+      setConfirmPassword("");
+      onOpenChange(false);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to change password.");
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => {
+      if (!o) {
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+      onOpenChange(o);
+    }}>
+      <DialogContent className="sm:max-w-[400px]">
+        <DialogHeader>
+          <DialogTitle>Change password</DialogTitle>
+          <DialogDescription>
+            Enter a new password for your account.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="cp-new">New password</Label>
+            <Input
+              id="cp-new"
+              type="password"
+              placeholder="Minimum 6 characters"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cp-confirm">Confirm password</Label>
+            <Input
+              id="cp-confirm"
+              type="password"
+              placeholder="Re-enter your password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={changePassword.isPending}>
+              {changePassword.isPending ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

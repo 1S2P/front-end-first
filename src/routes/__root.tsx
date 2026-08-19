@@ -83,6 +83,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     if (typeof window === "undefined") return;
     // Allow visiting the login page while unauthenticated.
     if (location.pathname === "/login") return;
+    if (location.pathname === "/reset-password") return;
 
     const { data } = await supabase.auth.getSession();
     if (!data.session) {

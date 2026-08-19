@@ -23,19 +23,31 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, Trash2, KeyRound } from "lucide-react";
 import {
   useProfiles,
   useBrands,
   useDepartments,
   useInviteUser,
   useUpdateProfile,
+  useAdminUpdateUser,
+  useDeleteUser,
 } from "@/lib/api/admin";
 import { useApp, useRequirePermission } from "@/lib/app-context";
 import { cn } from "@/lib/utils";
@@ -55,15 +67,17 @@ export const Route = createFileRoute("/_shell/admin/employees")({
 
 function EmployeeManagement() {
   const denied = useRequirePermission("admin_manage_employees");
-  const { currentBrandId } = useApp();
+  const { currentBrandId, currentUser } = useApp();
   const [search, setSearch] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<EditableEmployee | null>(null);
+  const [deletingProfile, setDeletingProfile] = useState<EditableEmployee | null>(null);
   const { data: profiles = [], isLoading } = useProfiles();
   const { data: brands = [] } = useBrands();
   const { data: departments = [] } = useDepartments();
   const inviteUser = useInviteUser();
   const updateProfile = useUpdateProfile();
+  const deleteUser = useDeleteUser();
 
   if (denied) return null;
 
@@ -74,6 +88,17 @@ function EmployeeManagement() {
           u.email.toLowerCase().includes(search.toLowerCase()),
       )
     : profiles;
+
+  const handleDelete = async () => {
+    if (!deletingProfile) return;
+    try {
+      await deleteUser.mutateAsync({ userId: deletingProfile.id });
+      toast.success(`${deletingProfile.name} has been deleted.`);
+      setDeletingProfile(null);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete employee.");
+    }
+  };
 
   return (
     <>
@@ -112,6 +137,7 @@ function EmployeeManagement() {
                       {b.name}
                     </TableHead>
                   ))}
+                  <TableHead className="w-[80px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -119,6 +145,7 @@ function EmployeeManagement() {
                   const dept = departments.find((d) => d.id === e.department_id);
                   const userBrands =
                     (e as any).profile_brands?.map((pb: any) => pb.brand_id) ?? [];
+                  const isCurrentUser = e.id === currentUser?.id;
                   return (
                     <TableRow key={e.id}>
                       <TableCell>
@@ -136,15 +163,6 @@ function EmployeeManagement() {
                               {e.email}
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                            onClick={() => setEditingProfile(e as EditableEmployee)}
-                            aria-label={`Edit ${e.name}`}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
                         </div>
                       </TableCell>
                       <TableCell>{dept?.name ?? "—"}</TableCell>
@@ -181,13 +199,37 @@ function EmployeeManagement() {
                           )}
                         </TableCell>
                       ))}
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={() => setEditingProfile(e as EditableEmployee)}
+                            aria-label={`Edit ${e.name}`}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          {!isCurrentUser && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              onClick={() => setDeletingProfile(e as EditableEmployee)}
+                              aria-label={`Delete ${e.name}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
                 {filtered.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={3 + brands.length}
+                      colSpan={4 + brands.length}
                       className="py-8 text-center text-sm text-muted-foreground"
                     >
                       No employees found.
@@ -215,9 +257,32 @@ function EmployeeManagement() {
           departments={departments}
           brands={brands}
           updateProfile={updateProfile}
+          adminUpdateUser={useAdminUpdateUser()}
           onClose={() => setEditingProfile(null)}
         />
       )}
+
+      <AlertDialog open={!!deletingProfile} onOpenChange={(o) => !o && setDeletingProfile(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove <strong>{deletingProfile?.name}</strong>'s account and
+              all associated data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteUser.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteUser.isPending ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -225,6 +290,7 @@ function EmployeeManagement() {
 type EditableEmployee = {
   id: string;
   name: string;
+  email: string;
   role: string;
   department_id: string | null;
   profile_brands?: Array<{ brand_id: string }>;
@@ -235,20 +301,27 @@ function EditEmployeeDialog({
   departments,
   brands,
   updateProfile,
+  adminUpdateUser,
   onClose,
 }: {
   profile: EditableEmployee;
   departments: Array<{ id: string; name: string }>;
   brands: Array<{ id: string; name: string }>;
   updateProfile: ReturnType<typeof useUpdateProfile>;
+  adminUpdateUser: ReturnType<typeof useAdminUpdateUser>;
   onClose: () => void;
 }) {
   const [name, setName] = useState(profile.name);
+  const [email, setEmail] = useState(profile.email);
   const [role, setRole] = useState(profile.role);
   const [departmentId, setDepartmentId] = useState(profile.department_id ?? "");
   const [selectedBrands, setSelectedBrands] = useState<string[]>(
     profile.profile_brands?.map((pb) => pb.brand_id) ?? [],
   );
+
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const toggleBrand = (brandId: string) =>
     setSelectedBrands((prev) =>
@@ -260,16 +333,55 @@ function EditEmployeeDialog({
       toast.error("Name is required.");
       return;
     }
+    if (!email.trim()) {
+      toast.error("Email is required.");
+      return;
+    }
+
     try {
-      await updateProfile.mutateAsync({
-        id: profile.id,
-        updates: {
-          name: name.trim(),
-          role: role as "admin" | "team_lead" | "team_member",
-          department_id: departmentId || null,
-          brandIds: selectedBrands,
-        },
-      });
+      const profileChanged =
+        name.trim() !== profile.name ||
+        role !== profile.role ||
+        departmentId !== (profile.department_id ?? "") ||
+        JSON.stringify(selectedBrands.sort()) !==
+          JSON.stringify((profile.profile_brands?.map((pb) => pb.brand_id) ?? []).sort());
+
+      if (profileChanged) {
+        await updateProfile.mutateAsync({
+          id: profile.id,
+          updates: {
+            name: name.trim(),
+            role: role as "admin" | "team_lead" | "team_member",
+            department_id: departmentId || null,
+            brandIds: selectedBrands,
+          },
+        });
+      }
+
+      const authChanged = email.trim() !== profile.email;
+
+      let passwordChanged = false;
+      if (showPasswordReset && newPassword) {
+        if (newPassword.length < 6) {
+          toast.error("Password must be at least 6 characters.");
+          return;
+        }
+        if (newPassword !== confirmPassword) {
+          toast.error("Passwords do not match.");
+          return;
+        }
+        passwordChanged = true;
+      }
+
+      if (authChanged || passwordChanged) {
+        await adminUpdateUser.mutateAsync({
+          userId: profile.id,
+          email: authChanged ? email.trim() : undefined,
+          password: passwordChanged ? newPassword : undefined,
+          name: authChanged ? name.trim() : undefined,
+        });
+      }
+
       toast.success(`${name.trim()} updated.`);
       onClose();
     } catch (err) {
@@ -279,17 +391,30 @@ function EditEmployeeDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Employee</DialogTitle>
           <DialogDescription>
-            Update this employee's role, department, and brand access.
+            Update this employee's details, credentials, and brand access.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Full Name</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Email Address</Label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            {email !== profile.email && (
+              <p className="text-xs text-muted-foreground">
+                Changing the email will update their login credential.
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -341,12 +466,69 @@ function EditEmployeeDialog({
               select.
             </p>
           </div>
+
+          <div className="border-t pt-4">
+            {!showPasswordReset ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPasswordReset(true)}
+              >
+                <KeyRound className="mr-1.5 h-3.5 w-3.5" />
+                Reset Password
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Reset Password</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowPasswordReset(false);
+                      setNewPassword("");
+                      setConfirmPassword("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="password"
+                    placeholder="New password (min 6 characters)"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    minLength={6}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    minLength={6}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="button" onClick={handleSave} disabled={updateProfile.isPending}>
-              {updateProfile.isPending ? "Saving..." : "Save Changes"}
+            <Button
+              type="button"
+              onClick={handleSave}
+              disabled={updateProfile.isPending || adminUpdateUser.isPending}
+            >
+              {updateProfile.isPending || adminUpdateUser.isPending
+                ? "Saving..."
+                : "Save Changes"}
             </Button>
           </DialogFooter>
         </div>

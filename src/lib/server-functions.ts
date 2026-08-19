@@ -143,6 +143,118 @@ export const inviteEmployee = createServerFn({ method: "POST" as const })
     return { id: userId };
   });
 
+export const adminUpdateUser = createServerFn({ method: "POST" as const })
+  .validator(
+    (data: {
+      accessToken: string;
+      userId: string;
+      email?: string;
+      password?: string;
+      name?: string;
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const userClient = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.VITE_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: `Bearer ${data.accessToken}` } } },
+    );
+
+    const {
+      data: { user },
+    } = await userClient.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
+
+    const { data: profile } = await userClient
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    const isAdmin = profile?.role === "admin";
+    const perms = await getUserPermissionIds(userClient, user.id);
+    if (!isAdmin && !perms.has("admin_manage_employees")) throw new Error("Forbidden");
+
+    const adminClient = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+
+    const authUpdate: { email?: string; password?: string } = {};
+    if (data.email) authUpdate.email = data.email;
+    if (data.password) authUpdate.password = data.password;
+
+    if (Object.keys(authUpdate).length > 0) {
+      const { error: authError } = await adminClient.auth.admin.updateUserById(
+        data.userId,
+        authUpdate,
+      );
+      if (authError) throw new Error(authError.message || "Failed to update user account");
+    }
+
+    if (data.email || data.name) {
+      const profileUpdate: Record<string, unknown> = {};
+      if (data.email) profileUpdate.email = data.email;
+      if (data.name) {
+        profileUpdate.name = data.name;
+        profileUpdate.initials = data.name
+          .split(" ")
+          .map((w: string) => w[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2);
+      }
+      const { error: profileError } = await adminClient
+        .from("profiles")
+        .update(profileUpdate)
+        .eq("id", data.userId);
+      if (profileError) throw new Error(profileError.message || "Failed to update profile");
+    }
+
+    return { userId: data.userId };
+  });
+
+export const adminDeleteUser = createServerFn({ method: "POST" as const })
+  .validator((data: { accessToken: string; userId: string }) => data)
+  .handler(async ({ data }) => {
+    const userClient = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.VITE_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: `Bearer ${data.accessToken}` } } },
+    );
+
+    const {
+      data: { user },
+    } = await userClient.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
+
+    if (user.id === data.userId) {
+      throw new Error("You cannot delete your own account.");
+    }
+
+    const { data: profile } = await userClient
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    const isAdmin = profile?.role === "admin";
+    const perms = await getUserPermissionIds(userClient, user.id);
+    if (!isAdmin && !perms.has("admin_manage_employees")) throw new Error("Forbidden");
+
+    const adminClient = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+
+    await adminClient.from("profile_permissions").delete().eq("profile_id", data.userId);
+    await adminClient.from("profile_brands").delete().eq("profile_id", data.userId);
+    await adminClient.from("profiles").delete().eq("id", data.userId);
+
+    const { error: authError } = await adminClient.auth.admin.deleteUser(data.userId);
+    if (authError) throw new Error(authError.message || "Failed to delete user account");
+
+    return { userId: data.userId };
+  });
+
 export const uploadTaskAttachment = createServerFn({ method: "POST" as const })
   .validator(
     (data: {

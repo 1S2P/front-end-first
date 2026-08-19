@@ -255,6 +255,58 @@ export function useInviteUser() {
   });
 }
 
+export function useAdminUpdateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      userId,
+      email,
+      password,
+      name,
+    }: {
+      userId: string;
+      email?: string;
+      password?: string;
+      name?: string;
+    }) => {
+      const { data: session } = await supabase.auth.getSession();
+      const accessToken = session?.session?.access_token;
+      if (!accessToken) throw new Error("Not authenticated");
+
+      const { adminUpdateUser } = await import("@/lib/server-functions");
+      const result = await adminUpdateUser({
+        data: { accessToken, userId, email, password, name },
+      });
+      return result;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["profiles"] });
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+}
+
+export function useDeleteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId }: { userId: string }) => {
+      const { data: session } = await supabase.auth.getSession();
+      const accessToken = session?.session?.access_token;
+      if (!accessToken) throw new Error("Not authenticated");
+
+      const { adminDeleteUser } = await import("@/lib/server-functions");
+      const result = await adminDeleteUser({
+        data: { accessToken, userId },
+      });
+      return result;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["profiles"] });
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+}
+
 // ─── Projects ────────────────────────────────────────────────────────────────
 export function useProjects(brandId?: string) {
   return useQuery({

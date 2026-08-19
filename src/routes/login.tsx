@@ -4,7 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { useSignIn } from "@/lib/api/auth";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useSignIn, useForgotPassword } from "@/lib/api/auth";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -23,9 +31,14 @@ function LoginPage() {
   const navigate = useNavigate();
   const { redirect } = Route.useSearch();
   const signIn = useSignIn();
+  const forgotPassword = useForgotPassword();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotError, setForgotError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +49,24 @@ function LoginPage() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Invalid email or password.");
     }
+  };
+
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError("");
+    try {
+      await forgotPassword.mutateAsync(forgotEmail);
+      setForgotSent(true);
+    } catch (err: unknown) {
+      setForgotError(err instanceof Error ? err.message : "Failed to send reset email.");
+    }
+  };
+
+  const openForgot = () => {
+    setForgotOpen(true);
+    setForgotSent(false);
+    setForgotError("");
+    setForgotEmail(email);
   };
 
   return (
@@ -79,7 +110,16 @@ function LoginPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <button
+                    type="button"
+                    onClick={openForgot}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
                 <Input
                   id="password"
                   type="password"
@@ -100,6 +140,53 @@ function LoginPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Reset your password</DialogTitle>
+            <DialogDescription>
+              Enter your email address and we'll send you a link to reset your password.
+            </DialogDescription>
+          </DialogHeader>
+          {forgotSent ? (
+            <div className="py-4">
+              <p className="text-sm text-muted-foreground">
+                If an account exists with <strong>{forgotEmail}</strong>, you'll receive a
+                password reset link shortly. Check your inbox and spam folder.
+              </p>
+              <DialogFooter className="mt-4">
+                <Button variant="outline" onClick={() => setForgotOpen(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <form onSubmit={handleForgotSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="forgot-email">Email address</Label>
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  placeholder="you@danfetea.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  required
+                />
+              </div>
+              {forgotError && <p className="text-sm text-destructive">{forgotError}</p>}
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setForgotOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={forgotPassword.isPending}>
+                  {forgotPassword.isPending ? "Sending…" : "Send reset link"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

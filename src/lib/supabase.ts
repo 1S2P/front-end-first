@@ -11,6 +11,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    storage: typeof window !== "undefined" ? window.localStorage : undefined,
   },
   realtime: {
     params: { eventsPerSecond: 10 },

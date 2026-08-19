@@ -8,7 +8,9 @@ export function useSession() {
       const { data } = await supabase.auth.getSession();
       return data.session;
     },
-    staleTime: Infinity,
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 10 * 60 * 1000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -49,5 +51,25 @@ export function useSignOut() {
       if (error) throw error;
     },
     onSuccess: () => qc.clear(),
+  });
+}
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: async (email: string) => {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+    },
+  });
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: async ({ password }: { password: string }) => {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+    },
   });
 }
