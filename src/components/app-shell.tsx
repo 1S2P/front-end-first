@@ -14,8 +14,6 @@ import {
   CheckCircle2,
   LogOut,
   KeyRound,
-  Building2,
-  ExternalLink,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -52,14 +50,13 @@ const GlobalSearch = lazy(() =>
   import("@/components/global-search").then((m) => ({ default: m.GlobalSearch })),
 );
 
-type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; external?: boolean };
+type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
 
 const mainNav: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/tasks",     label: "My Tasks",  icon: ListTodo },
   { to: "/projects",  label: "Projects",  icon: Briefcase },
   { to: "/workflows", label: "Workflows", icon: Workflow },
-  { to: "https://employee-task-uh4x.onrender.com/employee/dashboard", label: "Employee Workspace", icon: Building2, external: true },
 ];
 
 const moreNav: NavItem[] = [
@@ -347,28 +344,9 @@ function NavList({
   return (
     <ul className="space-y-0.5 py-1">
       {items.map((item) => {
-        const active = !item.external && (pathname === item.to || pathname.startsWith(item.to + "/"));
+        const active = pathname === item.to || pathname.startsWith(item.to + "/");
         const Icon = item.icon;
         const badge = badges?.[item.to] ?? 0;
-
-        if (item.external) {
-          return (
-            <li key={item.to}>
-              <a
-                href={item.to}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={onNavigate}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors text-sidebar-foreground hover:bg-sidebar-accent"
-              >
-                <Icon className="h-4 w-4" />
-                <span className="flex-1 truncate">{item.label}</span>
-                <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
-              </a>
-            </li>
-          );
-        }
-
         return (
           <li key={item.to}>
             <Link

@@ -277,6 +277,7 @@ export function useAdminUpdateUser() {
       const result = await adminUpdateUser({
         data: { accessToken, userId, email, password, name },
       });
+      if (result.error) throw new Error(result.error);
       return result;
     },
     onSuccess: () => {
@@ -298,6 +299,7 @@ export function useDeleteUser() {
       const result = await adminDeleteUser({
         data: { accessToken, userId },
       });
+      if (result.error) throw new Error(result.error);
       return result;
     },
     onSuccess: () => {

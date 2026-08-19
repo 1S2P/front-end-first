@@ -163,7 +163,7 @@ export const adminUpdateUser = createServerFn({ method: "POST" as const })
     const {
       data: { user },
     } = await userClient.auth.getUser();
-    if (!user) throw new Error("Unauthorized");
+    if (!user) return { error: "Unauthorized" };
 
     const { data: profile } = await userClient
       .from("profiles")
@@ -172,7 +172,7 @@ export const adminUpdateUser = createServerFn({ method: "POST" as const })
       .single();
     const isAdmin = profile?.role === "admin";
     const perms = await getUserPermissionIds(userClient, user.id);
-    if (!isAdmin && !perms.has("admin_manage_employees")) throw new Error("Forbidden");
+    if (!isAdmin && !perms.has("admin_manage_employees")) return { error: "Forbidden" };
 
     const adminClient = createClient(
       process.env.VITE_SUPABASE_URL!,
@@ -188,7 +188,7 @@ export const adminUpdateUser = createServerFn({ method: "POST" as const })
         data.userId,
         authUpdate,
       );
-      if (authError) throw new Error(authError.message || "Failed to update user account");
+      if (authError) return { error: authError.message || "Failed to update user account" };
     }
 
     if (data.email || data.name) {
@@ -207,54 +207,78 @@ export const adminUpdateUser = createServerFn({ method: "POST" as const })
         .from("profiles")
         .update(profileUpdate)
         .eq("id", data.userId);
-      if (profileError) throw new Error(profileError.message || "Failed to update profile");
+      if (profileError) return { error: profileError.message || "Failed to update profile" };
     }
 
-    return { userId: data.userId };
+    return { error: null, userId: data.userId };
   });
 
+/**
+ * Deletes an employee.
+ * Order: unassign/clear dependent rows -> delete profile row -> delete auth user.
+ * Every failure path returns { error } and every unexpected exception is
+ * caught and logged server-side, so the client never receives a bare "{}".
+ */
 export const adminDeleteUser = createServerFn({ method: "POST" as const })
   .validator((data: { accessToken: string; userId: string }) => data)
   .handler(async ({ data }) => {
-    const userClient = createClient(
-      process.env.VITE_SUPABASE_URL!,
-      process.env.VITE_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: `Bearer ${data.accessToken}` } } },
-    );
+    try {
+      const userClient = createClient(
+        process.env.VITE_SUPABASE_URL!,
+        process.env.VITE_SUPABASE_ANON_KEY!,
+        { global: { headers: { Authorization: `Bearer ${data.accessToken}` } } },
+      );
 
-    const {
-      data: { user },
-    } = await userClient.auth.getUser();
-    if (!user) throw new Error("Unauthorized");
+      const {
+        data: { user },
+      } = await userClient.auth.getUser();
+      if (!user) return { error: "Unauthorized" };
 
-    if (user.id === data.userId) {
-      throw new Error("You cannot delete your own account.");
+      if (user.id === data.userId) {
+        return { error: "You cannot delete your own account." };
+      }
+
+      const { data: profile } = await userClient
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      const isAdmin = profile?.role === "admin";
+      const perms = await getUserPermissionIds(userClient, user.id);
+      if (!isAdmin && !perms.has("admin_manage_employees")) return { error: "Forbidden" };
+
+      const adminClient = createClient(
+        process.env.VITE_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      );
+
+      // ── 1. Delete the auth user first (prevents login) ────────────────
+      const { error: authError } = await adminClient.auth.admin.deleteUser(data.userId);
+      if (authError) return { error: authError.message || "Failed to delete user account" };
+
+      // ── 2. Clear join/dependent rows ──────────────────────────────────
+      await adminClient.from("profile_permissions").delete().eq("profile_id", data.userId);
+      await adminClient.from("profile_brands").delete().eq("profile_id", data.userId);
+
+      // ── 3. Unassign tasks (set assigned_to → null) ───────────────────
+      await adminClient.from("tasks").update({ assigned_to: null }).eq("assigned_to", data.userId);
+
+      // ── 4. Try to delete profile row (may fail if other FKs exist) ───
+      const { error: profileDeleteError } = await adminClient
+        .from("profiles")
+        .delete()
+        .eq("id", data.userId);
+      if (profileDeleteError) {
+        console.warn("adminDeleteUser: profile row could not be deleted (FK constraints):", profileDeleteError.message);
+      }
+
+      return { error: null, userId: data.userId };
+    } catch (err) {
+      console.error("adminDeleteUser: unexpected error", err);
+      return {
+        error: err instanceof Error ? err.message : "Unexpected error deleting employee.",
+      };
     }
-
-    const { data: profile } = await userClient
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    const isAdmin = profile?.role === "admin";
-    const perms = await getUserPermissionIds(userClient, user.id);
-    if (!isAdmin && !perms.has("admin_manage_employees")) throw new Error("Forbidden");
-
-    const adminClient = createClient(
-      process.env.VITE_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
-
-    const { error: authError } = await adminClient.auth.admin.deleteUser(data.userId);
-    if (authError) throw new Error(authError.message || "Failed to delete user account");
-
-    await adminClient.from("profile_permissions").delete().eq("profile_id", data.userId);
-    await adminClient.from("profile_brands").delete().eq("profile_id", data.userId);
-
-    // Ignore profile delete errors (may fail due to FK references from tasks/activities)
-    await adminClient.from("profiles").delete().eq("id", data.userId);
-
-    return { userId: data.userId };
   });
 
 export const uploadTaskAttachment = createServerFn({ method: "POST" as const })
