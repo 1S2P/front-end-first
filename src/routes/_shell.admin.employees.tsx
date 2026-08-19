@@ -77,6 +77,7 @@ function EmployeeManagement() {
   const { data: departments = [] } = useDepartments();
   const inviteUser = useInviteUser();
   const updateProfile = useUpdateProfile();
+  const adminUpdateUser = useAdminUpdateUser();
   const deleteUser = useDeleteUser();
 
   if (denied) return null;
@@ -257,12 +258,12 @@ function EmployeeManagement() {
           departments={departments}
           brands={brands}
           updateProfile={updateProfile}
-          adminUpdateUser={useAdminUpdateUser()}
+          adminUpdateUser={adminUpdateUser}
           onClose={() => setEditingProfile(null)}
         />
       )}
 
-      <AlertDialog open={!!deletingProfile} onOpenChange={(o) => !o && setDeletingProfile(null)}>
+      <AlertDialog open={!!deletingProfile} onOpenChange={(o) => { if (!o) setDeletingProfile(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Employee</AlertDialogTitle>
@@ -272,14 +273,14 @@ function EmployeeManagement() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
+            <AlertDialogCancel disabled={deleteUser.isPending}>Cancel</AlertDialogCancel>
+            <Button
               disabled={deleteUser.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDelete}
             >
               {deleteUser.isPending ? "Deleting…" : "Delete"}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

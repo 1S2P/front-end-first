@@ -245,12 +245,14 @@ export const adminDeleteUser = createServerFn({ method: "POST" as const })
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
 
-    await adminClient.from("profile_permissions").delete().eq("profile_id", data.userId);
-    await adminClient.from("profile_brands").delete().eq("profile_id", data.userId);
-    await adminClient.from("profiles").delete().eq("id", data.userId);
-
     const { error: authError } = await adminClient.auth.admin.deleteUser(data.userId);
     if (authError) throw new Error(authError.message || "Failed to delete user account");
+
+    await adminClient.from("profile_permissions").delete().eq("profile_id", data.userId);
+    await adminClient.from("profile_brands").delete().eq("profile_id", data.userId);
+
+    // Ignore profile delete errors (may fail due to FK references from tasks/activities)
+    await adminClient.from("profiles").delete().eq("id", data.userId);
 
     return { userId: data.userId };
   });
