@@ -252,24 +252,45 @@ export const adminDeleteUser = createServerFn({ method: "POST" as const })
         process.env.SUPABASE_SERVICE_ROLE_KEY!,
       );
 
-      // ── 1. Delete the auth user first (prevents login) ────────────────
-      const { error: authError } = await adminClient.auth.admin.deleteUser(data.userId);
-      if (authError) return { error: authError.message || "Failed to delete user account" };
+      // ── 1. Clear dependent rows FIRST — in parallel, order doesn't matter ──
+      const [permsResult, brandsResult, tasksResult] = await Promise.all([
+        adminClient.from("profile_permissions").delete().eq("profile_id", data.userId),
+        adminClient.from("profile_brands").delete().eq("profile_id", data.userId),
+        adminClient.from("tasks").update({ assigned_to: null }).eq("assigned_to", data.userId),
+      ]);
 
-      // ── 2. Clear join/dependent rows ──────────────────────────────────
-      await adminClient.from("profile_permissions").delete().eq("profile_id", data.userId);
-      await adminClient.from("profile_brands").delete().eq("profile_id", data.userId);
+      if (tasksResult.error) {
+        console.error("adminDeleteUser: failed to unassign tasks", tasksResult.error);
+        return { error: tasksResult.error.message || "Failed to unassign employee's tasks." };
+      }
+      if (permsResult.error) {
+        console.error("adminDeleteUser: failed to clear permissions", permsResult.error);
+      }
+      if (brandsResult.error) {
+        console.error("adminDeleteUser: failed to clear brand access", brandsResult.error);
+      }
 
-      // ── 3. Unassign tasks (set assigned_to → null) ───────────────────
-      await adminClient.from("tasks").update({ assigned_to: null }).eq("assigned_to", data.userId);
-
-      // ── 4. Try to delete profile row (may fail if other FKs exist) ───
+      // ── 2. Delete the profile row BEFORE the auth user, and check its error.
+      //       This is the row the tasks FK points at — must succeed here or
+      //       we bail out with a real message instead of a partial delete.
       const { error: profileDeleteError } = await adminClient
         .from("profiles")
         .delete()
         .eq("id", data.userId);
       if (profileDeleteError) {
-        console.warn("adminDeleteUser: profile row could not be deleted (FK constraints):", profileDeleteError.message);
+        console.error("adminDeleteUser: profile delete failed", profileDeleteError);
+        return {
+          error:
+            profileDeleteError.message ||
+            "Could not delete profile — it may still be referenced by tasks or activity records.",
+        };
+      }
+
+      // ── 3. Delete the auth user LAST ─────────────────────────────────────
+      const { error: authError } = await adminClient.auth.admin.deleteUser(data.userId);
+      if (authError) {
+        console.error("adminDeleteUser: auth delete failed", authError);
+        return { error: authError.message || "Failed to delete user account" };
       }
 
       return { error: null, userId: data.userId };

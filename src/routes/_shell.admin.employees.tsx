@@ -96,24 +96,8 @@ const handleDelete = async () => {
     await deleteUser.mutateAsync({ userId: deletingProfile.id });
     toast.success(`${deletingProfile.name} has been deleted.`);
     setDeletingProfile(null);
-  } catch (err: unknown) {
-    console.error("Failed to delete employee:", err);
-    const anyErr = err as any;
-    const msg =
-      err instanceof Error
-        ? err.message
-        : typeof err === "string"
-          ? err
-          : anyErr?.message ||
-            anyErr?.error_description ||
-            anyErr?.details ||
-            anyErr?.hint ||
-            anyErr?.error ||
-            (typeof err === "object" && err !== null
-              ? JSON.stringify(err, Object.getOwnPropertyNames(err))
-              : "") ||
-            "Failed to delete employee.";
-    toast.error(msg);
+  } catch (err: any) {
+    toast.error(err?.message || "Failed to delete employee.");
   }
 };
 
