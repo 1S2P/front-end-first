@@ -226,6 +226,124 @@ export function useSaveWorkflowTemplate() {
   });
 }
 
+export function useDuplicateWorkflowTemplate() {
+  interface SourceStep {
+    id: string;
+    name: string;
+    description?: string | null;
+    department_id?: string | null;
+    assigned_user_id?: string | null;
+    approval_required: boolean;
+    estimated_time?: string | null;
+    deadline_offset?: string | null;
+    step_order: number;
+    position_x?: number | null;
+    position_y?: number | null;
+    step_checklist_items?: Array<{ label: string; sort_order: number }> | null;
+  }
+  interface SourceConnection {
+    from_step: string;
+    to_step: string;
+  }
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ templateId, brandId }: { templateId: string; brandId: string }) => {
+      const { data: session } = await supabase.auth.getSession();
+
+      const { data: source, error: srcErr } = await supabase
+        .from("workflow_templates")
+        .select(TEMPLATE_SELECT)
+        .eq("id", templateId)
+        .single();
+      if (srcErr) throw srcErr;
+
+      const steps = (source.workflow_steps as SourceStep[] | undefined ?? []).sort(
+        (a, b) => a.step_order - b.step_order,
+      );
+
+      // Insert the template copy
+      const { data: tpl, error: tplErr } = await supabase
+        .from("workflow_templates")
+        .insert({
+          name: `${source.name} (copy)`,
+          description: source.description,
+          department_id: source.department_id,
+          brand_id: brandId,
+          created_by: session.session!.user.id,
+        })
+        .select()
+        .single();
+      if (tplErr) throw tplErr;
+
+      // Insert cloned steps
+      const stepInserts = steps.map((s) => ({
+        template_id: tpl.id,
+        name: s.name,
+        description: s.description,
+        department_id: s.department_id,
+        assigned_user_id: s.assigned_user_id,
+        approval_required: s.approval_required,
+        estimated_time: s.estimated_time,
+        deadline_offset: s.deadline_offset,
+        step_order: s.step_order,
+        position_x: s.position_x,
+        position_y: s.position_y,
+      }));
+
+      const { data: savedSteps, error: stepsErr } = await supabase
+        .from("workflow_steps")
+        .insert(stepInserts)
+        .select();
+      if (stepsErr) throw stepsErr;
+
+      const orderToId = new Map<number, string>();
+      for (const ss of savedSteps) {
+        orderToId.set(ss.step_order, ss.id);
+      }
+
+      // Clone checklist items per step
+      const checklistInserts = steps.flatMap((s) =>
+        (s.step_checklist_items ?? []).map((c) => ({
+          step_id: orderToId.get(s.step_order)!,
+          label: c.label,
+          sort_order: c.sort_order,
+        })),
+      );
+      if (checklistInserts.length > 0) {
+        const { error: clErr } = await supabase
+          .from("step_checklist_items")
+          .insert(checklistInserts);
+        if (clErr) throw clErr;
+      }
+
+      // Rebuild connections using order-to-id mapping
+      const connInserts = (source.workflow_connections as SourceConnection[] | undefined ?? []).flatMap(
+        (c) => {
+          const fromStep = steps.find((s) => s.id === c.from_step);
+          const toStep = steps.find((s) => s.id === c.to_step);
+          if (!fromStep || !toStep) return [];
+          return [
+            {
+              template_id: tpl.id,
+              from_step: orderToId.get(fromStep.step_order)!,
+              to_step: orderToId.get(toStep.step_order)!,
+            },
+          ];
+        },
+      );
+      if (connInserts.length > 0) {
+        const { error: connErr } = await supabase
+          .from("workflow_connections")
+          .insert(connInserts);
+        if (connErr) throw connErr;
+      }
+
+      return tpl;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["workflows"] }),
+  });
+}
+
 export function useArchiveWorkflowTemplate() {
   const qc = useQueryClient();
   return useMutation({

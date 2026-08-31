@@ -38,6 +38,7 @@ import {
   useDeleteWorkflowTemplate,
   useArchiveWorkflowTemplate,
   useStartWorkflow,
+  useDuplicateWorkflowTemplate,
 } from "@/lib/api/workflows";
 import { useProjects } from "@/lib/api/admin";
 import { toast } from "sonner";
@@ -60,6 +61,7 @@ function WorkflowLibrary() {
   const deleteWorkflow = useDeleteWorkflowTemplate();
   const archiveWorkflow = useArchiveWorkflowTemplate();
   const startWorkflow = useStartWorkflow();
+  const duplicateWorkflow = useDuplicateWorkflowTemplate();
   const { data: projects = [] } = useProjects(currentBrandId);
 
   const canCreate = currentRole === "admin" || hasPermission("workflow_create") || hasPermission("workflow_builder_access");
@@ -133,6 +135,19 @@ function WorkflowLibrary() {
     } catch (err: any) {
       console.error("Execute workflow error:", err);
       toast.error(err.message || "Failed to start workflow");
+    }
+  };
+
+  const handleDuplicate = async (w: any) => {
+    try {
+      await duplicateWorkflow.mutateAsync({
+        templateId: w.id,
+        brandId: currentBrandId,
+      });
+      toast.success(`"${w.name}" duplicated`);
+    } catch (err: any) {
+      console.error("Duplicate workflow error:", err);
+      toast.error(err.message || "Failed to duplicate workflow");
     }
   };
 
@@ -253,9 +268,18 @@ function WorkflowLibrary() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() =>
-                                    handleArchive(w.id, w.name, w.status)
-                                  }
+                                  onClick={() => handleDuplicate(w)}
+                                  disabled={duplicateWorkflow.isPending}
+                                >
+                                  <Copy className="mr-1 h-3.5 w-3.5" />
+                                  Duplicate
+                                </Button>
+                              )}
+                              {canEdit && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleArchive(w.id, w.name, w.status)}
                                 >
                                   <Archive className="mr-1 h-3.5 w-3.5" />
                                   {w.status === "active" ? "Archive" : "Unarchive"}
