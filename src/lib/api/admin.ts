@@ -274,13 +274,11 @@ export function useAdminUpdateUser() {
       if (!accessToken) throw new Error("Not authenticated");
 
       const { adminUpdateUser } = await import("@/lib/server-functions");
-      try {
-        await adminUpdateUser({
-          data: { accessToken, userId, email, password, name },
-        });
-      } catch (err: unknown) {
-        throw typeof err === "string" ? new Error(err) : err;
-      }
+      const result = await adminUpdateUser({
+        data: { accessToken, userId, email, password, name },
+      });
+      if (result.error) throw new Error(result.error);
+      return result;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["profiles"] });
@@ -298,13 +296,11 @@ export function useDeleteUser() {
       if (!accessToken) throw new Error("Not authenticated");
 
       const { adminDeleteUser } = await import("@/lib/server-functions");
-      try {
-        await adminDeleteUser({
-          data: { accessToken, userId },
-        });
-      } catch (err: unknown) {
-        throw typeof err === "string" ? new Error(err) : err;
-      }
+      const result = await adminDeleteUser({
+        data: { accessToken, userId },
+      });
+      if (result.error) throw new Error(result.error);
+      return result;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["profiles"] });
