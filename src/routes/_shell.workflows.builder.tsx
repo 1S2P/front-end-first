@@ -47,6 +47,8 @@ export const Route = createFileRoute("/_shell/workflows/builder")({
   component: WorkflowBuilder,
 });
 
+type ApproverRole = "admin" | "team_lead";
+
 type StepNode = {
   id: string;
   name: string;
@@ -54,6 +56,7 @@ type StepNode = {
   departmentId: string;
   assignedUserId: string | null;
   approvalRequired: boolean;
+  approverRole: ApproverRole;
   estimatedTime: string;
   deadline: string;
   checklist: { id: string; label: string }[];
@@ -92,6 +95,7 @@ function WorkflowBuilder() {
           departmentId: s.department_id ?? "",
           assignedUserId: s.assigned_user_id ?? null,
           approvalRequired: s.approval_required ?? false,
+          approverRole: s.approver_role === "team_lead" ? "team_lead" : "admin",
           estimatedTime: s.estimated_time ?? "",
           deadline: s.deadline_offset ?? "",
           checklist: (s.step_checklist_items ?? [])
@@ -113,6 +117,7 @@ function WorkflowBuilder() {
       departmentId: departments[0]?.id ?? "",
       assignedUserId: null,
       approvalRequired: false,
+      approverRole: "admin",
       estimatedTime: "1h",
       deadline: "3",
       checklist: [],
@@ -185,6 +190,7 @@ function WorkflowBuilder() {
           department_id: s.departmentId || undefined,
           assigned_user_id: s.assignedUserId || undefined,
           approval_required: s.approvalRequired,
+          approver_role: s.approverRole,
           estimated_time: s.estimatedTime || undefined,
           deadline_offset: s.deadline || undefined,
           step_order: i,
@@ -605,10 +611,40 @@ function WorkflowBuilder() {
                       <Switch
                         checked={selectedStep.approvalRequired}
                         onCheckedChange={(v) =>
-                          updateStep(selectedStep.id, { approvalRequired: v })
+                          updateStep(selectedStep.id, {
+                            approvalRequired: v,
+                            approverRole: v ? selectedStep.approverRole : "admin",
+                          })
                         }
                       />
                     </div>
+                    {selectedStep.approvalRequired && (
+                      <Field
+                        label="Approver"
+                        hint={
+                          selectedStep.approverRole === "team_lead"
+                            ? "Review goes to the team lead of this step's department."
+                            : "Review goes to an admin."
+                        }
+                      >
+                        <Select
+                          value={selectedStep.approverRole}
+                          onValueChange={(v) =>
+                            updateStep(selectedStep.id, {
+                              approverRole: v as ApproverRole,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="team_lead">Team Lead</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    )}
                     <Separator />
                     <div>
                       <Label className="text-xs">Checklist</Label>

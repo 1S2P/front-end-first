@@ -36,7 +36,7 @@ export type TaskActivity = {
 export type TaskWithRelations = TaskRow & {
   assigned_profile?: TaskProfile | null;
   approver_profile?: TaskProfile | null;
-  department?: { id: string; name: string } | null;
+  department?: { id: string; name: string; team_lead_id: string | null } | null;
   project?: { id: string; name: string } | null;
   task_checklist_items?: TaskChecklistItem[];
   task_attachments?: TaskAttachment[];
@@ -49,7 +49,7 @@ const TASK_SELECT = `
   assigned_profile:profiles!tasks_assigned_to_fkey(id, name, initials, avatar_color),
   approver_profile:profiles!tasks_approved_by_fkey(id, name, initials, avatar_color),
   project:projects(id, name),
-  department:departments(id, name),
+  department:departments(id, name, team_lead_id),
   task_checklist_items(id, label, checked, sort_order),
   task_attachments(id, name, type, size, storage_path, uploaded_by, version, uploaded_at),
   task_comments(id, user_id, text, created_at, profiles(id, name, initials, avatar_color)),
@@ -154,17 +154,38 @@ export function useMyActionableTaskCount(brandId?: string) {
 }
 
 export function useTaskBadgeCount(brandId?: string) {
-  const { currentUser, currentRole, hasPermission } = useApp();
+  const { currentUser, currentRole } = useApp();
   const { data: myActionableCount = 0 } = useMyActionableTaskCount(brandId);
   const { data: pendingReviews = [] } = usePendingReviews(brandId);
 
-  const canReviewTasks = currentRole === "admin" || hasPermission("tasks_review");
-  if (!canReviewTasks) return myActionableCount;
+  const isAdmin = currentRole === "admin";
+  const isTeamLead = currentRole === "team_lead" && !!currentUser?.department_id;
 
-  const reviewCount =
-    currentRole === "admin"
-      ? pendingReviews.length
-      : pendingReviews.filter((t) => t.assigned_to !== currentUser?.id).length;
+  const { data: teamLeadReviewCount = 0 } = useQuery({
+    queryKey: ["tasks", "review-count", currentUser?.id, isTeamLead, brandId],
+    staleTime: 15_000,
+    enabled: isTeamLead,
+    queryFn: async () => {
+      let q = supabase
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "waiting_review")
+        .is("reviewed_at", null)
+        .eq("approval_required", true)
+        .eq("approver_role", "team_lead")
+        .eq("department_id", currentUser!.department_id!)
+        .neq("assigned_to", currentUser!.id);
+      if (brandId) q = q.eq("brand_id", brandId);
+      const { count, error } = await q;
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
+  let reviewCount = 0;
+  if (isAdmin)
+    reviewCount = pendingReviews.filter((t) => t.approver_role === "admin").length;
+  else if (isTeamLead) reviewCount = teamLeadReviewCount;
 
   return myActionableCount + reviewCount;
 }
@@ -317,21 +338,22 @@ export function useAddComment() {
   return useMutation({
     mutationFn: async ({ taskId, text }: { taskId: string; text: string }) => {
       const { data: session } = await supabase.auth.getSession();
-      const { error } = await supabase.from("task_comments").insert({
+      const uid = session.session!.user.id;
+      const comment = supabase.from("task_comments").insert({
         task_id: taskId,
-        user_id: session.session!.user.id,
+        user_id: uid,
         text,
       });
-      if (error) throw error;
-      try {
-        await supabase.from("task_activities").insert({
-          task_id: taskId,
-          action: "comment_added",
-          user_id: session.session!.user.id,
-          description: "Comment added",
-        });
-      } catch {
-        console.warn("Failed to log comment activity");
+      const activity = supabase.from("task_activities").insert({
+        task_id: taskId,
+        action: "comment_added",
+        user_id: uid,
+        description: "Comment added",
+      });
+      const [c, a] = await Promise.all([comment, activity]);
+      if (c.error) {
+        if (a.error) console.warn("Failed to log comment activity");
+        throw c.error;
       }
     },
     onSuccess: (_, { taskId }) => {
