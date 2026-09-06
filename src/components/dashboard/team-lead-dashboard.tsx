@@ -22,7 +22,7 @@ export function TeamLeadDashboard() {
   const overdue = deptTasks.filter(
     (t) => t.due_date && t.due_date < today && t.status !== "completed",
   );
-  const myReviews = pendingReviews.filter((t) => t.department_id === deptId);
+  const myReviews = pendingReviews.filter((t) => t.approver_id === currentUser.id);
 
   const stats = [
     {

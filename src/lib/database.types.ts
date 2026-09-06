@@ -134,6 +134,7 @@ export interface Database {
           assigned_user_id: string | null;
           approval_required: boolean;
           approver_role: string;
+          approver_id: string | null;
           estimated_time: string | null;
           deadline_offset: string | null;
           step_order: number;
@@ -190,6 +191,7 @@ export interface Database {
           estimated_time: string | null;
           approval_required: boolean;
           approver_role: string;
+          approver_id: string | null;
           submitted_at: string | null;
           reviewed_at: string | null;
           created_at: string;

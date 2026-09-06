@@ -75,6 +75,7 @@ type SupabaseTask = {
   estimated_time: string | null;
   approval_required: boolean;
   approver_role: string;
+  approver_id: string | null;
   submitted_at: string | null;
   reviewed_at: string | null;
   created_at: string;
@@ -105,19 +106,17 @@ function MyTasks() {
   }
 
   const canSeeDept = isAdmin || hasPermission("dashboard_department_tasks");
-  const canReviewTasks = isAdmin || currentRole === "team_lead";
+  const canReviewTasks = isAdmin || currentRole === "team_lead" || currentRole === "team_member";
 
   const departmentTasks = isAdmin ? allBrandTasks : deptTasks;
 
-  const reviewQueue = (isAdmin ? pendingReviews : deptTasks).filter(
+  const reviewQueue = pendingReviews.filter(
     (t) =>
       t.status === "waiting_review" &&
       !t.reviewed_at &&
       t.approval_required &&
-      t.approver_role === (isAdmin ? "admin" : "team_lead") &&
-      (isAdmin ||
-        (t.department_id === currentUser.department_id &&
-          t.assigned_to !== currentUser.id)),
+      t.assigned_to !== currentUser.id &&
+      (t.approver_id != null ? t.approver_id === currentUser.id : isAdmin),
   );
 
   const reassignedMine = reassignedTasks.filter((t) => t.assigned_to === currentUser.id);

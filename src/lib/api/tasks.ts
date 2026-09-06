@@ -36,6 +36,7 @@ export type TaskActivity = {
 export type TaskWithRelations = TaskRow & {
   assigned_profile?: TaskProfile | null;
   approver_profile?: TaskProfile | null;
+  designated_approver?: TaskProfile | null;
   department?: { id: string; name: string; team_lead_id: string | null } | null;
   project?: { id: string; name: string } | null;
   task_checklist_items?: TaskChecklistItem[];
@@ -48,6 +49,7 @@ const TASK_SELECT = `
   *,
   assigned_profile:profiles!tasks_assigned_to_fkey(id, name, initials, avatar_color),
   approver_profile:profiles!tasks_approved_by_fkey(id, name, initials, avatar_color),
+  designated_approver:profiles!tasks_approver_id_fkey(id, name, initials, avatar_color),
   project:projects(id, name),
   department:departments(id, name, team_lead_id),
   task_checklist_items(id, label, checked, sort_order),
@@ -156,15 +158,13 @@ export function useMyActionableTaskCount(brandId?: string) {
 export function useTaskBadgeCount(brandId?: string) {
   const { currentUser, currentRole } = useApp();
   const { data: myActionableCount = 0 } = useMyActionableTaskCount(brandId);
-  const { data: pendingReviews = [] } = usePendingReviews(brandId);
 
   const isAdmin = currentRole === "admin";
-  const isTeamLead = currentRole === "team_lead" && !!currentUser?.department_id;
 
-  const { data: teamLeadReviewCount = 0 } = useQuery({
-    queryKey: ["tasks", "review-count", currentUser?.id, isTeamLead, brandId],
+  const { data: myReviewCount = 0 } = useQuery({
+    queryKey: ["tasks", "review-count", currentUser?.id, isAdmin, brandId],
     staleTime: 15_000,
-    enabled: isTeamLead,
+    enabled: !!currentUser?.id,
     queryFn: async () => {
       let q = supabase
         .from("tasks")
@@ -172,9 +172,12 @@ export function useTaskBadgeCount(brandId?: string) {
         .eq("status", "waiting_review")
         .is("reviewed_at", null)
         .eq("approval_required", true)
-        .eq("approver_role", "team_lead")
-        .eq("department_id", currentUser!.department_id!)
         .neq("assigned_to", currentUser!.id);
+      if (isAdmin) {
+        q = q.is("approver_id", null);
+      } else {
+        q = q.eq("approver_id", currentUser!.id);
+      }
       if (brandId) q = q.eq("brand_id", brandId);
       const { count, error } = await q;
       if (error) throw error;
@@ -182,12 +185,7 @@ export function useTaskBadgeCount(brandId?: string) {
     },
   });
 
-  let reviewCount = 0;
-  if (isAdmin)
-    reviewCount = pendingReviews.filter((t) => t.approver_role === "admin").length;
-  else if (isTeamLead) reviewCount = teamLeadReviewCount;
-
-  return myActionableCount + reviewCount;
+  return myActionableCount + myReviewCount;
 }
 
 export function useAllBrandTasks(brandId?: string, options?: { enabled?: boolean }) {

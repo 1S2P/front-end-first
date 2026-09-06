@@ -136,7 +136,8 @@ export function useSaveWorkflowTemplate() {
         department_id?: string;
         assigned_user_id?: string;
         approval_required: boolean;
-        approver_role?: "admin" | "team_lead";
+        approver_role?: "admin" | "team_lead" | "user";
+        approver_id?: string | null;
         estimated_time?: string;
         deadline_offset?: string;
         step_order: number;
@@ -175,6 +176,7 @@ export function useSaveWorkflowTemplate() {
         assigned_user_id: s.assigned_user_id,
         approval_required: s.approval_required,
         approver_role: s.approver_role ?? "admin",
+        approver_id: s.approver_id ?? null,
         estimated_time: s.estimated_time,
         deadline_offset: s.deadline_offset,
         step_order: s.step_order,
@@ -237,6 +239,7 @@ export function useDuplicateWorkflowTemplate() {
     assigned_user_id?: string | null;
     approval_required: boolean;
     approver_role?: string | null;
+    approver_id?: string | null;
     estimated_time?: string | null;
     deadline_offset?: string | null;
     step_order: number;
@@ -287,6 +290,7 @@ export function useDuplicateWorkflowTemplate() {
         assigned_user_id: s.assigned_user_id,
         approval_required: s.approval_required,
         approver_role: s.approver_role ?? "admin",
+        approver_id: s.approver_id ?? null,
         estimated_time: s.estimated_time,
         deadline_offset: s.deadline_offset,
         step_order: s.step_order,

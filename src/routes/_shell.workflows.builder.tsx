@@ -47,8 +47,6 @@ export const Route = createFileRoute("/_shell/workflows/builder")({
   component: WorkflowBuilder,
 });
 
-type ApproverRole = "admin" | "team_lead";
-
 type StepNode = {
   id: string;
   name: string;
@@ -56,7 +54,7 @@ type StepNode = {
   departmentId: string;
   assignedUserId: string | null;
   approvalRequired: boolean;
-  approverRole: ApproverRole;
+  approverId: string | null;
   estimatedTime: string;
   deadline: string;
   checklist: { id: string; label: string }[];
@@ -95,7 +93,7 @@ function WorkflowBuilder() {
           departmentId: s.department_id ?? "",
           assignedUserId: s.assigned_user_id ?? null,
           approvalRequired: s.approval_required ?? false,
-          approverRole: s.approver_role === "team_lead" ? "team_lead" : "admin",
+          approverId: s.approver_id ?? null,
           estimatedTime: s.estimated_time ?? "",
           deadline: s.deadline_offset ?? "",
           checklist: (s.step_checklist_items ?? [])
@@ -117,7 +115,7 @@ function WorkflowBuilder() {
       departmentId: departments[0]?.id ?? "",
       assignedUserId: null,
       approvalRequired: false,
-      approverRole: "admin",
+      approverId: null,
       estimatedTime: "1h",
       deadline: "3",
       checklist: [],
@@ -190,7 +188,8 @@ function WorkflowBuilder() {
           department_id: s.departmentId || undefined,
           assigned_user_id: s.assignedUserId || undefined,
           approval_required: s.approvalRequired,
-          approver_role: s.approverRole,
+          approver_role: s.approverId ? "user" : "admin",
+          approver_id: s.approverId,
           estimated_time: s.estimatedTime || undefined,
           deadline_offset: s.deadline || undefined,
           step_order: i,
@@ -613,7 +612,7 @@ function WorkflowBuilder() {
                         onCheckedChange={(v) =>
                           updateStep(selectedStep.id, {
                             approvalRequired: v,
-                            approverRole: v ? selectedStep.approverRole : "admin",
+                            approverId: v ? selectedStep.approverId : null,
                           })
                         }
                       />
@@ -622,16 +621,16 @@ function WorkflowBuilder() {
                       <Field
                         label="Approver"
                         hint={
-                          selectedStep.approverRole === "team_lead"
-                            ? "Review goes to the team lead of this step's department."
-                            : "Review goes to an admin."
+                          selectedStep.approverId
+                            ? "Review goes to this employee only."
+                            : "Review goes to any admin (default)."
                         }
                       >
                         <Select
-                          value={selectedStep.approverRole}
+                          value={selectedStep.approverId ?? "__admin__"}
                           onValueChange={(v) =>
                             updateStep(selectedStep.id, {
-                              approverRole: v as ApproverRole,
+                              approverId: v === "__admin__" ? null : v,
                             })
                           }
                         >
@@ -639,8 +638,12 @@ function WorkflowBuilder() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="team_lead">Team Lead</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="__admin__">Admin</SelectItem>
+                            {filteredUsers.map((u) => (
+                              <SelectItem key={u.id} value={u.id}>
+                                {u.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </Field>

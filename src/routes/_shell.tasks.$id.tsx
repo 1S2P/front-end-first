@@ -148,12 +148,9 @@ function TaskDetail() {
     task.approval_required &&
     currentUser != null &&
     task.assigned_to !== currentUser.id &&
-    (task.approver_role === "admin"
-      ? currentRole === "admin"
-      : task.approver_role === "team_lead" &&
-        currentRole === "team_lead" &&
-        currentUser.department_id != null &&
-        task.department_id === currentUser.department_id);
+    (task.approver_id != null
+      ? currentUser.id === task.approver_id
+      : currentRole === "admin");
 
   const handleSubmit = async () => {
     try {
@@ -523,8 +520,22 @@ function TaskDetail() {
                   <span>{assignee?.name ?? "—"}</span>
                 </div>
               </Row>
-              {approver && (
+              {task.approver_id != null && (
                 <Row label="Approver">
+                  <div className="flex items-center gap-1.5">
+                    {t.designated_approver && (
+                      <Avatar className="h-5 w-5">
+                        <AvatarFallback className={cn("text-[8px]", t.designated_approver.avatar_color)}>
+                          {t.designated_approver.initials}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
+                    <span>{t.designated_approver?.name ?? "—"}</span>
+                  </div>
+                </Row>
+              )}
+              {approver && (
+                <Row label="Reviewed by">
                   <div className="flex items-center gap-1.5">
                     <Avatar className="h-5 w-5">
                       <AvatarFallback className={cn("text-[8px]", approver.avatar_color)}>
