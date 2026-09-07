@@ -13,6 +13,13 @@ async function getUserPermissionIds(
   return new Set(((data ?? []) as { permission_id: string }[]).map((p) => p.permission_id));
 }
 
+function isUserAdmin(
+  role: string | null | undefined,
+  perms: Set<string>,
+): boolean {
+  return role === "admin" || perms.has("admin_manage_brands");
+}
+
 export const setProfilePermissions = createServerFn({ method: "POST" as const })
   .validator(
     (data: { accessToken: string; profileId: string; permissionIds: string[] }) => data,
@@ -34,8 +41,8 @@ export const setProfilePermissions = createServerFn({ method: "POST" as const })
       .select("role")
       .eq("id", user.id)
       .single();
-    const isAdmin = callerProfile?.role === "admin";
     const perms = await getUserPermissionIds(userClient, user.id);
+    const isAdmin = isUserAdmin(callerProfile?.role, perms);
     if (!isAdmin && !perms.has("admin_assign_permissions")) {
       throw new Error("Forbidden: you do not have permission to assign permissions");
     }
@@ -93,8 +100,8 @@ export const inviteEmployee = createServerFn({ method: "POST" as const })
       .select("role")
       .eq("id", user.id)
       .single();
-    const isAdmin = profile?.role === "admin";
     const perms = await getUserPermissionIds(userClient, user.id);
+    const isAdmin = isUserAdmin(profile?.role, perms);
     if (!isAdmin && !perms.has("admin_manage_employees")) throw new Error("Forbidden");
 
     const adminClient = createClient(
@@ -170,8 +177,8 @@ export const adminUpdateUser = createServerFn({ method: "POST" as const })
       .select("role")
       .eq("id", user.id)
       .single();
-    const isAdmin = profile?.role === "admin";
     const perms = await getUserPermissionIds(userClient, user.id);
+    const isAdmin = isUserAdmin(profile?.role, perms);
     if (!isAdmin && !perms.has("admin_manage_employees")) return { error: "Forbidden" };
 
     const adminClient = createClient(
@@ -243,8 +250,8 @@ export const adminDeleteUser = createServerFn({ method: "POST" as const })
         .select("role")
         .eq("id", user.id)
         .single();
-      const isAdmin = profile?.role === "admin";
       const perms = await getUserPermissionIds(userClient, user.id);
+      const isAdmin = isUserAdmin(profile?.role, perms);
       if (!isAdmin && !perms.has("admin_manage_employees")) return { error: "Forbidden" };
 
       const adminClient = createClient(
@@ -336,8 +343,8 @@ export const uploadTaskAttachment = createServerFn({ method: "POST" as const })
       .select("role, department_id")
       .eq("id", user.id)
       .single();
-    const isAdmin = profile?.role === "admin";
     const perms = await getUserPermissionIds(userClient, user.id);
+    const isAdmin = isUserAdmin(profile?.role, perms);
     const sameDept = profile?.department_id === task.department_id;
     const canUpload =
       task.assigned_to === user.id ||
@@ -418,8 +425,8 @@ export const getTaskAttachmentSignedUrls = createServerFn({ method: "POST" as co
       .select("role, department_id")
       .eq("id", user.id)
       .single();
-    const isAdmin = profile?.role === "admin";
     const perms = await getUserPermissionIds(userClient, user.id);
+    const isAdmin = isUserAdmin(profile?.role, perms);
     const sameDept = profile?.department_id === task.department_id;
     const canView =
       task.assigned_to === user.id ||
