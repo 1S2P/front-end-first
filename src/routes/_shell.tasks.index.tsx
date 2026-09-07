@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { LayoutGrid, List } from "lucide-react";
+import { LayoutGrid, List, Play } from "lucide-react";
 import { useState } from "react";
 import { useApp } from "@/lib/app-context";
 import {
@@ -21,10 +21,12 @@ import {
   usePendingReviews,
   useReassignedTasks,
   useAllBrandTasks,
+  useStartTask,
 } from "@/lib/api/tasks";
 import { useDepartments } from "@/lib/api/admin";
 import { TASK_STATUS_LABELS, BOARD_COLUMNS, type TaskStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_shell/tasks/")({
   head: () => ({
@@ -96,6 +98,16 @@ function MyTasks() {
   const { data: departments = [] } = useDepartments(currentBrandId);
   const { data: deptTasks = [] } = useDepartmentTasks(currentUser?.department_id ?? "", currentBrandId);
   const { data: allBrandTasks = [] } = useAllBrandTasks(currentBrandId, { enabled: isAdmin });
+  const startTask = useStartTask();
+
+  const handleStart = async (t: SupabaseTask) => {
+    try {
+      await startTask.mutateAsync(t.id);
+      toast.success(`"${t.title}" marked as in progress`);
+    } catch {
+      toast.error("Failed to start task");
+    }
+  };
 
   if (!currentUser) {
     return (
@@ -229,48 +241,48 @@ function MyTasks() {
           {isLoading ? (
             <LoadingState />
           ) : view === "board" ? (
-            <BoardView tasks={myTasks} showAssignee={false} />
+            <BoardView tasks={myTasks} showAssignee={false} onStart={handleStart} currentUserId={currentUser.id} />
           ) : (
-            <ListView tasks={myTasks} showAssignee={false} />
+            <ListView tasks={myTasks} showAssignee={false} onStart={handleStart} currentUserId={currentUser.id} />
           )}
         </TabsContent>
         {canSeeDept && (
           <TabsContent value="dept" className="mt-4">
             {view === "board" ? (
-              <BoardView tasks={departmentTasks} showAssignee={true} />
+              <BoardView tasks={departmentTasks} showAssignee={true} onStart={handleStart} currentUserId={currentUser.id} />
             ) : (
-              <ListView tasks={departmentTasks} showAssignee={true} />
+              <ListView tasks={departmentTasks} showAssignee={true} onStart={handleStart} currentUserId={currentUser.id} />
             )}
           </TabsContent>
         )}
         {canReviewTasks && (
           <TabsContent value="reviews" className="mt-4">
             {view === "board" ? (
-              <BoardView tasks={reviewQueue} showAssignee={true} />
+              <BoardView tasks={reviewQueue} showAssignee={true} onStart={handleStart} currentUserId={currentUser.id} />
             ) : (
-              <ListView tasks={reviewQueue} showAssignee={true} />
+              <ListView tasks={reviewQueue} showAssignee={true} onStart={handleStart} currentUserId={currentUser.id} />
             )}
           </TabsContent>
         )}
         <TabsContent value="reassigned" className="mt-4">
           {view === "board" ? (
-            <BoardView tasks={reassignedMine} showAssignee={false} />
+            <BoardView tasks={reassignedMine} showAssignee={false} onStart={handleStart} currentUserId={currentUser.id} />
           ) : (
-            <ListView tasks={reassignedMine} showAssignee={false} />
+            <ListView tasks={reassignedMine} showAssignee={false} onStart={handleStart} currentUserId={currentUser.id} />
           )}
         </TabsContent>
         <TabsContent value="today" className="mt-4">
           {view === "board" ? (
-            <BoardView tasks={dueToday} showAssignee={false} />
+            <BoardView tasks={dueToday} showAssignee={false} onStart={handleStart} currentUserId={currentUser.id} />
           ) : (
-            <ListView tasks={dueToday} showAssignee={false} />
+            <ListView tasks={dueToday} showAssignee={false} onStart={handleStart} currentUserId={currentUser.id} />
           )}
         </TabsContent>
         <TabsContent value="completed" className="mt-4">
           {view === "board" ? (
-            <BoardView tasks={completedTasks} showAssignee={isAdmin} />
+            <BoardView tasks={completedTasks} showAssignee={isAdmin} onStart={handleStart} currentUserId={currentUser.id} />
           ) : (
-            <ListView tasks={completedTasks} showAssignee={isAdmin} />
+            <ListView tasks={completedTasks} showAssignee={isAdmin} onStart={handleStart} currentUserId={currentUser.id} />
           )}
         </TabsContent>
       </Tabs>
@@ -286,7 +298,17 @@ function LoadingState() {
   );
 }
 
-function ListView({ tasks, showAssignee }: { tasks: SupabaseTask[]; showAssignee: boolean }) {
+function ListView({
+  tasks,
+  showAssignee,
+  onStart,
+  currentUserId,
+}: {
+  tasks: SupabaseTask[];
+  showAssignee: boolean;
+  onStart?: (t: SupabaseTask) => void;
+  currentUserId?: string;
+}) {
   return (
     <Card>
       <CardContent className="overflow-x-auto p-0">
@@ -337,9 +359,25 @@ function ListView({ tasks, showAssignee }: { tasks: SupabaseTask[]; showAssignee
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className={cn("border", STATUS_STYLES[t.status])}>
-                    {TASK_STATUS_LABELS[t.status]}
-                  </Badge>
+                  <div className="flex items-center gap-2 justify-end">
+                    {onStart &&
+                      currentUserId &&
+                      t.assigned_to === currentUserId &&
+                      t.status === "ready" && (
+<Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => onStart(t)}
+                    >
+                      <Play className="mr-1 h-3 w-3" />
+                      In Progress
+                    </Button>
+                      )}
+                    <Badge variant="outline" className={cn("border", STATUS_STYLES[t.status])}>
+                      {TASK_STATUS_LABELS[t.status]}
+                    </Badge>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -360,7 +398,17 @@ function ListView({ tasks, showAssignee }: { tasks: SupabaseTask[]; showAssignee
   );
 }
 
-function BoardView({ tasks, showAssignee }: { tasks: SupabaseTask[]; showAssignee: boolean }) {
+function BoardView({
+  tasks,
+  showAssignee,
+  onStart,
+  currentUserId,
+}: {
+  tasks: SupabaseTask[];
+  showAssignee: boolean;
+  onStart?: (t: SupabaseTask) => void;
+  currentUserId?: string;
+}) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
       {BOARD_COLUMNS.map((col) => {
@@ -414,6 +462,19 @@ function BoardView({ tasks, showAssignee }: { tasks: SupabaseTask[]; showAssigne
                   <div className="mt-1.5 text-[10px] text-muted-foreground">
                     Due {t.due_date ?? "—"}
                   </div>
+                  {onStart && currentUserId && t.assigned_to === currentUserId && t.status === "ready" && (
+                    <Button
+                      size="sm"
+                      className="mt-2 w-full"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onStart(t);
+                      }}
+                    >
+                      <Play className="mr-1 h-3 w-3" />
+                      In Progress
+                    </Button>
+                  )}
                 </Link>
               ))}
               {colTasks.length === 0 && (

@@ -24,6 +24,7 @@ import {
   GitBranch,
   Circle,
   User,
+  Play,
 } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import {
@@ -37,6 +38,7 @@ import {
   useRevisionAssignee,
   useTaskAttachmentSignedUrls,
   useWorkflowProgress,
+  useStartTask,
   type TaskWithRelations,
 } from "@/lib/api/tasks";
 import { useProfiles } from "@/lib/api/admin";
@@ -91,6 +93,7 @@ function TaskDetail() {
   const updateChecklist = useUpdateChecklist();
   const addComment = useAddComment();
   const uploadAttachment = useUploadAttachment();
+  const startTask = useStartTask();
   const revisionAssignee = useRevisionAssignee(task);
   const { data: signedAttachments } = useTaskAttachmentSignedUrls(id);
   const { data: workflowProgress } = useWorkflowProgress(task);
@@ -140,6 +143,10 @@ function TaskDetail() {
     task.status !== "completed";
   const canSubmit =
     task.status === "ready" || task.status === "in_progress" || task.status === "needs_revision";
+  const canStart =
+    task.status === "ready" &&
+    currentUser != null &&
+    task.assigned_to === currentUser.id;
   const canWithdraw =
     task.status === "waiting_review" && !task.reviewed_at && task.submitted_at;
   const canReview =
@@ -173,6 +180,15 @@ function TaskDetail() {
       toast.success("Submission withdrawn");
     } catch {
       toast.error("Failed to withdraw submission");
+    }
+  };
+
+  const handleStart = async () => {
+    try {
+      await startTask.mutateAsync(task.id);
+      toast.success("Task started — marked as in progress");
+    } catch {
+      toast.error("Failed to start task");
     }
   };
 
@@ -289,6 +305,12 @@ function TaskDetail() {
                   Approve
                 </Button>
               </>
+            )}
+            {canStart && (
+              <Button onClick={handleStart} disabled={startTask.isPending}>
+                <Play className="mr-1.5 h-4 w-4" />
+                {startTask.isPending ? "Updating…" : "In Progress"}
+              </Button>
             )}
             {canSubmit && (
               <Button onClick={handleSubmit} disabled={submitTask.isPending}>

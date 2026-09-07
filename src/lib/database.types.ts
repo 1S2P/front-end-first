@@ -25,6 +25,8 @@ export type ActivityAction =
   | "approved"
   | "rejected"
   | "revision_requested"
+  | "redo"
+  | "started"
   | "completed";
 export type NotificationType =
   | "task_assigned"
@@ -253,6 +255,27 @@ export interface Database {
         >;
         Update: Partial<Database["public"]["Tables"]["notifications"]["Insert"]>;
       };
+      workflow_schedules: {
+        Row: {
+          id: string;
+          template_id: string;
+          project_id: string;
+          brand_id: string;
+          repeat_days: number[];
+          start_date: string | null;
+          end_date: string | null;
+          next_run_at: string;
+          last_run_at: string | null;
+          active: boolean;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: Omit<
+          Database["public"]["Tables"]["workflow_schedules"]["Row"],
+          "id" | "created_at" | "next_run_at" | "last_run_at" | "active"
+        >;
+        Update: Partial<Database["public"]["Tables"]["workflow_schedules"]["Insert"]>;
+      };
     };
     Functions: {
       start_workflow: {
@@ -294,6 +317,7 @@ export interface Database {
           instance_status: string;
         }>;
       };
+      run_due_workflow_schedules: { Args: Record<never, never>; Returns: void };
     };
   };
 }

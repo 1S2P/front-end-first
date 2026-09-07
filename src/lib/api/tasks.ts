@@ -308,6 +308,33 @@ export function useUpdateTaskStatus() {
   });
 }
 
+/** Marks a ready task as in_progress and logs a "started" activity entry. */
+export function useStartTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (taskId: string) => {
+      const { data: session } = await supabase.auth.getSession();
+      const uid = session.session!.user.id;
+      const update = supabase.from("tasks").update({ status: "in_progress" }).eq("id", taskId);
+      const activity = supabase.from("task_activities").insert({
+        task_id: taskId,
+        action: "started",
+        user_id: uid,
+        description: "Task started",
+      });
+      const [u, a] = await Promise.all([update, activity]);
+      if (u.error) {
+        if (a.error) console.warn("Failed to log start activity");
+        throw u.error;
+      }
+    },
+    onSuccess: (_, taskId) => {
+      qc.invalidateQueries({ queryKey: ["task", taskId] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+
 export function useUpdateChecklist() {
   const qc = useQueryClient();
   return useMutation({

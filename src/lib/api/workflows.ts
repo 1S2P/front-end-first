@@ -68,6 +68,94 @@ export function useWorkflowInstances(brandId?: string) {
   });
 }
 
+export type WorkflowSchedule = {
+  id: string;
+  template_id: string;
+  project_id: string;
+  brand_id: string;
+  repeat_days: number[];
+  start_date: string | null;
+  end_date: string | null;
+  next_run_at: string;
+  last_run_at: string | null;
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
+  workflow_templates?: { id: string; name: string } | null;
+  projects?: { id: string; name: string } | null;
+};
+
+export function useWorkflowSchedules(brandId?: string) {
+  return useQuery({
+    queryKey: ["workflows", "schedules", brandId],
+    staleTime: 30_000,
+    queryFn: async () => {
+      let q = supabase
+        .from("workflow_schedules")
+        .select(
+          `*, workflow_templates(id, name), projects(id, name)`,
+        )
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (brandId) q = q.eq("brand_id", brandId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as WorkflowSchedule[];
+    },
+  });
+}
+
+export function useCreateWorkflowSchedule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      templateId,
+      projectId,
+      brandId,
+      repeatDays,
+      startDate,
+      endDate,
+    }: {
+      templateId: string;
+      projectId: string;
+      brandId: string;
+      repeatDays: number[];
+      startDate?: string;
+      endDate?: string;
+    }) => {
+      const { data: session } = await supabase.auth.getSession();
+      const { error } = await supabase.from("workflow_schedules").insert({
+        template_id: templateId,
+        project_id: projectId,
+        brand_id: brandId,
+        repeat_days: repeatDays,
+        start_date: startDate || null,
+        end_date: endDate || null,
+        created_by: session.session!.user.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["workflows", "schedules"] });
+      qc.invalidateQueries({ queryKey: ["workflows"] });
+    },
+  });
+}
+
+export function useDeleteWorkflowSchedule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("workflow_schedules").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["workflows", "schedules"] });
+      qc.invalidateQueries({ queryKey: ["workflows"] });
+    },
+  });
+}
+
 export function useStartWorkflow() {
   const qc = useQueryClient();
   return useMutation({
