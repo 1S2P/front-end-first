@@ -2,7 +2,8 @@ import { Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, ClipboardCheck, AlertOctagon, Timer } from "lucide-react";
+import { Users, ClipboardCheck, AlertOctagon, Timer, type LucideIcon } from "lucide-react";
+import { StatCard, type StatTone } from "@/components/dashboard/stat-card";
 import { useApp } from "@/lib/app-context";
 import { useDepartmentTasks, usePendingReviews } from "@/lib/api/tasks";
 import { useDepartments } from "@/lib/api/admin";
@@ -24,54 +25,52 @@ export function TeamLeadDashboard() {
   );
   const myReviews = pendingReviews.filter((t) => t.approver_id === currentUser.id);
 
-  const stats = [
+  const stats: {
+    icon: LucideIcon;
+    label: string;
+    value: number;
+    tone: StatTone;
+  }[] = [
     {
       icon: Users,
       label: "Active dept tasks",
       value: activeTasks.length,
-      tone: "bg-primary/10 text-primary",
+      tone: "primary",
     },
     {
       icon: ClipboardCheck,
       label: "Pending reviews",
       value: myReviews.length,
-      tone: "bg-info/10 text-info",
+      tone: "info",
     },
     {
       icon: AlertOctagon,
       label: "Overdue",
       value: overdue.length,
-      tone: "bg-destructive/10 text-destructive",
+      tone: overdue.length > 0 ? "destructive" : "default",
     },
     {
       icon: Timer,
       label: "Total tasks",
       value: deptTasks.length,
-      tone: "bg-success/10 text-success",
+      tone: "success",
     },
   ];
 
   return (
-    <>
+    <div className="mx-auto w-full max-w-5xl">
       <PageHeader
         title={`${dept?.name ?? "Department"} · Team Lead`}
         description="Visibility across your department."
       />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section
+        aria-label="Department statistics"
+        className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4"
+      >
         {stats.map((s) => (
-          <Card key={s.label}>
-            <CardContent className="flex items-center gap-4 p-5">
-              <div className={`grid h-10 w-10 place-items-center rounded-lg ${s.tone}`}>
-                <s.icon className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="text-2xl font-semibold leading-none">{s.value}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{s.label}</div>
-              </div>
-            </CardContent>
-          </Card>
+          <StatCard key={s.label} label={s.label} value={s.value} icon={s.icon} tone={s.tone} />
         ))}
-      </div>
+      </section>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <Card>
@@ -129,6 +128,6 @@ export function TeamLeadDashboard() {
           </CardContent>
         </Card>
       </div>
-    </>
+    </div>
   );
 }

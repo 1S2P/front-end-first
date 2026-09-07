@@ -96,11 +96,11 @@
   --chart-3: oklch(0.6 0.13 155);
   --chart-4: oklch(0.6 0.09 300);
   --chart-5: oklch(0.72 0.13 72);
-  --sidebar: oklch(0.985 0.002 240);
+  --sidebar: oklch(0.972 0.004 236);
   --sidebar-foreground: oklch(0.3 0.018 250);
   --sidebar-primary: oklch(0.5 0.1 202);
   --sidebar-primary-foreground: oklch(0.99 0.002 200);
-  --sidebar-accent: oklch(0.952 0.008 220);
+  --sidebar-accent: oklch(0.94 0.01 222);
   --sidebar-accent-foreground: oklch(0.3 0.03 230);
   --sidebar-border: oklch(0.925 0.004 235);
   --sidebar-ring: oklch(0.5 0.1 202);
@@ -147,6 +147,12 @@
   --sidebar-ring: oklch(0.72 0.1 200);
 }
 
+@theme inline {
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-reduce-fallback: initial;
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
@@ -173,8 +179,24 @@
     letter-spacing: -0.02em;
     font-feature-settings: "cv02", "cv03";
   }
+  button,
+  [role="button"],
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
   ::selection {
     background-color: color-mix(in oklab, var(--color-primary) 18%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

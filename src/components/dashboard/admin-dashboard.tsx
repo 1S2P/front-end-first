@@ -3,7 +3,8 @@ import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Users, Workflow, Activity, FolderOpen, ArrowRight } from "lucide-react";
+import { FolderOpen, Workflow, Activity, ArrowRight, Plus } from "lucide-react";
+import { StatCard } from "@/components/dashboard/stat-card";
 import { useApp } from "@/lib/app-context";
 import { useProjects } from "@/lib/api/admin";
 import { useWorkflowTemplates, useWorkflowInstances } from "@/lib/api/workflows";
@@ -25,51 +26,47 @@ export function AdminDashboard() {
     (t) => t.due_date && t.due_date < today && t.status !== "completed",
   );
 
-  const stats = [
-    {
-      icon: FolderOpen,
-      label: "Projects",
-      value: brandProjects.length,
-      tone: "bg-primary/10 text-primary",
-    },
-    {
-      icon: Workflow,
-      label: "Running Workflows",
-      value: runningWorkflows.length,
-      tone: "bg-success/10 text-success",
-    },
-    {
-      icon: Activity,
-      label: "Pending Reviews",
-      value: pendingReviews.length,
-      tone: "bg-warning/15 text-warning-foreground",
-    },
-    {
-      icon: Activity,
-      label: "Overdue Tasks",
-      value: overdue.length,
-      tone: "bg-destructive/10 text-destructive",
-    },
-  ];
-
   return (
-    <>
-      <PageHeader title="Admin Dashboard" description="Everything across your workspace." />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {stats.map((s) => (
-          <Card key={s.label}>
-            <CardContent className="flex items-center gap-4 p-5">
-              <div className={`grid h-10 w-10 place-items-center rounded-lg ${s.tone}`}>
-                <s.icon className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="text-2xl font-semibold leading-none">{s.value}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{s.label}</div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+    <div className="mx-auto w-full max-w-5xl">
+      <PageHeader
+        title="Admin Dashboard"
+        description="Everything across your workspace."
+        actions={
+          <Button asChild size="sm">
+            <Link to="/workflows">
+              <Plus className="mr-1 h-4 w-4" />
+              New workflow
+            </Link>
+          </Button>
+        }
+      />
+
+      <section
+        aria-label="Workspace statistics"
+        className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4"
+      >
+        <StatCard label="Projects" value={brandProjects.length} icon={FolderOpen} tone="primary" />
+        <StatCard
+          label="Running Workflows"
+          value={runningWorkflows.length}
+          icon={Workflow}
+          tone="success"
+        />
+        <StatCard
+          label="Pending Reviews"
+          value={pendingReviews.length}
+          icon={Activity}
+          tone={pendingReviews.length > 0 ? "warning" : "default"}
+          hint={pendingReviews.length > 0 ? "Awaiting action" : ""}
+        />
+        <StatCard
+          label="Overdue Tasks"
+          value={overdue.length}
+          icon={Activity}
+          tone={overdue.length > 0 ? "destructive" : "default"}
+          hint={overdue.length > 0 ? "Needs attention" : ""}
+        />
+      </section>
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
         <Shortcut
@@ -146,7 +143,7 @@ export function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
-    </>
+    </div>
   );
 }
 

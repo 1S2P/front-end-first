@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   LogOut,
   KeyRound,
+  type LucideIcon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -50,7 +51,7 @@ const GlobalSearch = lazy(() =>
   import("@/components/global-search").then((m) => ({ default: m.GlobalSearch })),
 );
 
-type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
+type NavItem = { to: string; label: string; icon: LucideIcon };
 
 const mainNav: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -86,8 +87,10 @@ export function AppShell() {
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
-        <main className="flex-1 p-4 pb-28 sm:p-6 lg:p-8 lg:pb-8">
-          <Outlet />
+        <main className="flex-1 p-4 pb-28 sm:p-6 lg:px-8 lg:pb-8">
+          <div className="mx-auto w-full max-w-6xl">
+            <Outlet />
+          </div>
         </main>
         <BottomNav />
       </div>
@@ -159,8 +162,6 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { currentBrandId, setCurrentBrandId, currentRole, currentUser, hasPermission } = useApp();
   const { data: brands = [] } = useBrands();
-  const [showMore, setShowMore]   = useState(() => moreNav.some((i) => pathname.startsWith(i.to)));
-  const [showAdmin, setShowAdmin] = useState(() => pathname.startsWith("/admin"));
   const taskBadge = useTaskBadgeCount(currentBrandId);
 
   // Filter to only brands the current user belongs to
@@ -225,30 +226,23 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-2">
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
+        <div className="mb-1 px-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/80">
+          Workspace
+        </div>
         <NavList items={mainNav} pathname={pathname} onNavigate={onNavigate} badges={mainNavBadges} />
 
-        <button
-          type="button"
-          onClick={() => setShowMore((v) => !v)}
-          className="mt-4 flex w-full items-center justify-between rounded-md px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-sidebar-accent"
-        >
-          More
-          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !showMore && "-rotate-90")} />
-        </button>
-        {showMore && <NavList items={moreNav} pathname={pathname} onNavigate={onNavigate} />}
+        <div className="mt-5 mb-1 px-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/80">
+          Secondary
+        </div>
+        <NavList items={moreNav} pathname={pathname} onNavigate={onNavigate} />
 
         {visibleAdminNav.length > 0 && (
           <>
-            <button
-              type="button"
-              onClick={() => setShowAdmin((v) => !v)}
-              className="mt-4 flex w-full items-center justify-between rounded-md px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-sidebar-accent"
-            >
+            <div className="mt-5 mb-1 px-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/80">
               Admin
-              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !showAdmin && "-rotate-90")} />
-            </button>
-            {showAdmin && <NavList items={visibleAdminNav} pathname={pathname} onNavigate={onNavigate} />}
+            </div>
+            <NavList items={visibleAdminNav} pathname={pathname} onNavigate={onNavigate} />
           </>
         )}
       </nav>
@@ -342,7 +336,7 @@ function NavList({
   badges?: Record<string, number>;
 }) {
   return (
-    <ul className="space-y-0.5 py-1">
+    <ul className="space-y-0.5">
       {items.map((item) => {
         const active = pathname === item.to || pathname.startsWith(item.to + "/");
         const Icon = item.icon;
@@ -352,12 +346,21 @@ function NavList({
             <Link
               to={item.to}
               onClick={onNavigate}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                active ? "bg-primary/10 text-primary font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent",
+                "relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors duration-150",
+                active
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
               )}
             >
-              <Icon className="h-4 w-4" />
+              {active && (
+                <span
+                  className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary"
+                  aria-hidden
+                />
+              )}
+              <Icon className="h-4 w-4 shrink-0" strokeWidth={active ? 2 : 1.75} />
               <span className="flex-1 truncate">{item.label}</span>
               {badge > 0 && (
                 <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">

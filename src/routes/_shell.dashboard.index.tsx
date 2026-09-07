@@ -1,14 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Clock, MessageSquare, AlertTriangle, CheckCircle2 } from "lucide-react";
+import {
+  CalendarCheck,
+  CheckCircle2,
+  ClipboardList,
+  Clock,
+  CircleDot,
+  ListChecks,
+  Ticket,
+  Bell,
+} from "lucide-react";
 import { useApp } from "@/lib/app-context";
-import { useMyTasks } from "@/lib/api/tasks";
+import { useMyTasks, useUpdateTaskStatus } from "@/lib/api/tasks";
 import { useNotifications } from "@/lib/api/notifications";
-import { TASK_STATUS_LABELS } from "@/lib/types";
 import { AdminDashboard } from "@/components/dashboard/admin-dashboard";
 import { TeamLeadDashboard } from "@/components/dashboard/team-lead-dashboard";
+import { StatCard } from "@/components/dashboard/stat-card";
+import { TaskRow, type TaskRowData } from "@/components/dashboard/task-row";
+import { NotificationRow } from "@/components/dashboard/notification-row";
+import { SectionHeader, EmptyState } from "@/components/dashboard/dashboard-ui";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_shell/dashboard/")({
   head: () => ({
@@ -22,7 +32,7 @@ function DashboardRouter() {
 
   if (!currentUser) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
+      <div className="flex items-center justify-center py-24 text-sm text-muted-foreground">
         Loading dashboard…
       </div>
     );
@@ -47,8 +57,9 @@ function DashboardRouter() {
 
 function EmployeeDashboard() {
   const { currentUser, currentBrandId } = useApp();
-  const { data: myTasks = [] } = useMyTasks(currentBrandId);
-  const { data: notifications = [] } = useNotifications();
+  const { data: myTasks = [], isLoading: tasksLoading } = useMyTasks(currentBrandId);
+  const { data: notifications = [], isLoading: notifLoading } = useNotifications();
+  const updateStatus = useUpdateTaskStatus();
 
   if (!currentUser) return null;
 
@@ -58,151 +69,164 @@ function EmployeeDashboard() {
     (t) => t.due_date && t.due_date < today && t.status !== "completed",
   );
   const completed = myTasks.filter((t) => t.status === "completed");
-  const unread = notifications.filter((n) => !n.read).length;
+  const active = myTasks.filter((t) => t.status !== "completed");
+  const unread = notifications.filter((n) => !n.read);
 
-  const stats = [
-    {
-      label: "Assigned to me",
-      value: myTasks.filter((t) => t.status !== "completed").length,
-      accent: true,
-    },
-    { label: "Due today", value: dueToday.length, accent: false },
-    { label: "Overdue", value: overdue.length, accent: overdue.length > 0 },
-    { label: "Completed", value: completed.length, accent: false },
-  ];
-
-  const activeTasks = myTasks
-    .filter((t) => t.status !== "completed")
-    .sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""))
+  const activeTasks = [...active]
+    .sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"))
     .slice(0, 5);
 
+  const handleToggleComplete = (task: TaskRowData) => {
+    const completing = task.status !== "completed";
+    updateStatus.mutate(
+      { taskId: task.id, status: completing ? "completed" : "in_progress" },
+      {
+        onSuccess: () =>
+          toast.success(completing ? `"${task.title}" marked as done` : `"${task.title}" reopened`),
+        onError: (e) => toast.error(e.message || "Could not update task"),
+      },
+    );
+  };
+
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
-      <section>
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          {getGreeting()}, {currentUser.name.split(" ")[0]}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          You have {dueToday.length} task{dueToday.length !== 1 ? "s" : ""} due today
-          {overdue.length > 0 && `, ${overdue.length} overdue`}
-          {unread > 0 && `, ${unread} unread notification${unread !== 1 ? "s" : ""}`}.
+    <div className="mx-auto w-full max-w-5xl">
+      {/* Header */}
+      <header className="mb-7">
+        <p className="mb-2 text-[13px] font-medium text-muted-foreground">
+          {formatFullDate(new Date())}
         </p>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {stats.map((s) => (
-            <Card key={s.label} className="shadow-sm">
-              <CardContent className="p-4">
-                <span className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  {s.label}
-                </span>
-                <span
-                  className={`mt-1 block text-2xl font-bold ${s.accent ? "text-primary" : "text-foreground"}`}
-                >
-                  {s.value}
-                </span>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <div className="mb-3 flex items-end justify-between">
-          <h2 className="font-semibold">My Tasks</h2>
-          <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild>
-            <Link to="/tasks">View all</Link>
-          </Button>
-        </div>
-        <div className="space-y-2">
-          {activeTasks.length === 0 ? (
-            <Card className="py-8">
-              <CardContent className="text-center text-sm text-muted-foreground">
-                No active tasks. Enjoy your free time!
-              </CardContent>
-            </Card>
-          ) : (
-            activeTasks.map((t) => {
-              const isOverdue =
-                t.due_date && t.due_date < today && t.status !== "completed";
-              return (
-                <Link
-                  key={t.id}
-                  to="/tasks/$id"
-                  params={{ id: t.id }}
-                  className={`flex items-center justify-between gap-3 rounded-xl border-l-4 bg-card p-4 shadow-sm transition-colors hover:bg-muted/40 ${isOverdue ? "border-l-destructive" : "border-l-primary"}`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{t.title}</p>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {(t as any).department?.name}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge
-                      variant={
-                        t.priority === "high"
-                          ? "destructive"
-                          : t.priority === "medium"
-                            ? "default"
-                            : "secondary"
-                      }
-                      className="text-[10px]"
-                    >
-                      {t.priority}
-                    </Badge>
-                    <Badge variant="secondary" className="text-[10px]">
-                      {TASK_STATUS_LABELS[t.status]}
-                    </Badge>
-                  </div>
-                </Link>
-              );
-            })
-          )}
-        </div>
-      </section>
-
-      <section>
-        <div className="mb-3 flex items-end justify-between">
-          <h2 className="font-semibold">Recent Notifications</h2>
-          <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild>
-            <Link to="/notifications">View all</Link>
-          </Button>
-        </div>
-        <div className="space-y-2">
-          {notifications.slice(0, 4).map((n) => (
-            <div
-              key={n.id}
-              className={`flex items-center gap-3 rounded-xl p-4 ${n.read ? "bg-card" : "bg-primary/5"}`}
-            >
-              <div
-                className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${n.type.includes("overdue") || n.type.includes("rejected") ? "bg-destructive/10 text-destructive" : n.type.includes("approved") ? "bg-success/10 text-success" : "bg-primary/10 text-primary"}`}
-              >
-                {n.type.includes("overdue") ? (
-                  <AlertTriangle className="h-4 w-4" />
-                ) : n.type.includes("approved") ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : n.type.includes("comment") ? (
-                  <MessageSquare className="h-4 w-4" />
-                ) : (
-                  <Clock className="h-4 w-4" />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-[28px] font-bold leading-tight tracking-tight text-foreground sm:text-3xl">
+              {getGreeting()},{" "}
+              <span className="text-foreground">{currentUser.name.split(" ")[0]}</span>
+            </h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Here&apos;s your day at a glance across{" "}
+              <span className="font-medium text-foreground">{active.length}</span> active task
+              {active.length !== 1 ? "s" : ""}.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-border/70 bg-card px-3.5 py-1.5 text-xs font-medium text-muted-foreground shadow-sm">
+            <CalendarCheck className="h-4 w-4 text-primary" aria-hidden />
+            {dueToday.length > 0 ? (
+              <span>
+                {dueToday.length} due today
+                {overdue.length > 0 && (
+                  <span className="ml-1 font-semibold text-destructive">
+                    · {overdue.length} overdue
+                  </span>
                 )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm truncate">{n.message}</p>
-                <p className="text-[10px] text-muted-foreground">
-                  {formatTimeAgo(n.created_at)}
-                </p>
-              </div>
-              {!n.read && <div className="h-2 w-2 rounded-full bg-primary shrink-0" />}
-            </div>
-          ))}
-          {notifications.length === 0 && (
-            <Card className="py-8">
-              <CardContent className="text-center text-sm text-muted-foreground">
-                No notifications yet.
-              </CardContent>
-            </Card>
-          )}
+              </span>
+            ) : overdue.length > 0 ? (
+              <span className="font-semibold text-destructive">{overdue.length} overdue</span>
+            ) : (
+              <span>Nothing due today</span>
+            )}
+          </div>
         </div>
+      </header>
+
+      {/* Statistics */}
+      <section
+        aria-label="Your statistics"
+        className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4"
+      >
+        <StatCard
+          label="Assigned to me"
+          value={active.length}
+          icon={ClipboardList}
+          tone="primary"
+          hint={`${Math.round((active.length / Math.max(myTasks.length, 1)) * 100)}% of all`}
+        />
+        <StatCard label="Due today" value={dueToday.length} icon={CalendarCheck} tone="primary" />
+        <StatCard
+          label="Overdue"
+          value={overdue.length}
+          icon={Clock}
+          tone={overdue.length > 0 ? "destructive" : "default"}
+          hint={overdue.length > 0 ? "Needs attention" : ""}
+        />
+        <StatCard
+          label="Completed"
+          value={completed.length}
+          icon={CheckCircle2}
+          tone="success"
+          hint={`${Math.round((completed.length / Math.max(myTasks.length, 1)) * 100)}% done`}
+        />
+      </section>
+
+      {/* Task list */}
+      <section className="mt-9">
+        <SectionHeader
+          title="My Tasks"
+          description="Your active tasks, ordered by due date"
+          viewAllTo="/tasks"
+          icon={ListChecks}
+        />
+        {tasksLoading ? (
+          <TaskListSkeleton />
+        ) : activeTasks.length === 0 ? (
+          <EmptyState
+            icon={CircleDot}
+            title="No active tasks"
+            description="You’re all caught up. New tasks will show up here as they’re assigned."
+          />
+        ) : (
+          <div className="space-y-1.5">
+            {activeTasks.map((t) => (
+              <TaskRow
+                key={t.id}
+                task={{
+                  id: t.id,
+                  title: t.title,
+                  status: t.status,
+                  priority: t.priority,
+                  due_date: t.due_date,
+                  department: t.department,
+                  project: t.project,
+                }}
+                today={today}
+                onToggleComplete={handleToggleComplete}
+              />
+            ))}
+            {active.length > 5 && (
+              <Link
+                to="/tasks"
+                className="block rounded-lg border border-dashed border-border px-4 py-2.5 text-center text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+              >
+                View all {active.length} active tasks
+              </Link>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Notifications */}
+      <section className="mt-9">
+        <SectionHeader
+          title="Recent Notifications"
+          description={unread.length > 0 ? `${unread.length} unread` : "You’re all caught up"}
+          viewAllTo="/notifications"
+          icon={Bell}
+        />
+        {notifLoading ? (
+          <NotificationSkeleton />
+        ) : notifications.length === 0 ? (
+          <EmptyState
+            icon={Ticket}
+            title="No notifications"
+            description="When something needs your attention, it’ll show up here."
+          />
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
+            <div className="divide-y divide-border/60">
+              {notifications.slice(0, 5).map((n) => (
+                <NotificationRow key={n.id} notification={n} />
+              ))}
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );
@@ -213,13 +237,48 @@ function getGreeting() {
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }
 
-function formatTimeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const m = Math.floor(diff / 60000),
-    h = Math.floor(m / 60),
-    d = Math.floor(h / 24);
-  if (m < 1) return "Just now";
-  if (m < 60) return `${m}m ago`;
-  if (h < 24) return `${h}h ago`;
-  return `${d}d ago`;
+function formatFullDate(d: Date) {
+  return d.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function TaskListSkeleton() {
+  return (
+    <div className="space-y-1.5">
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="flex items-center gap-4 rounded-lg border border-border/70 bg-card px-4 py-3.5"
+        >
+          <div className="h-[18px] w-[18px] animate-pulse rounded-[5px] bg-muted" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3.5 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/4 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="h-6 w-20 animate-pulse rounded-full bg-muted" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function NotificationSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
+      <div className="divide-y divide-border/60">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex items-center gap-3 px-3 py-3">
+            <div className="h-8 w-8 animate-pulse rounded-lg bg-muted" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+              <div className="h-2.5 w-1/4 animate-pulse rounded bg-muted" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
