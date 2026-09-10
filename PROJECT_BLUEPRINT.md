@@ -440,7 +440,9 @@ access token, then role checks) and are protected by the **CSRF middleware**
 | Function | What it does |
 |---|---|
 | `inviteEmployee` | Admin-only. Creates a Supabase auth user (`auth.admin.createUser`), updates their profile (name, role, department, initials), assigns brand memberships. |
-| `uploadTaskAttachment` | Verifies caller can access the task (assignee/admin/lead), uploads the base64 file to the `task-attachments` bucket under `tasks/{taskId}/...`, infers type from extension, inserts a `task_attachments` row + `files_uploaded` activity. |
+| `getTaskAttachmentUploadUrl` | Verifies caller can access the task (assignee/admin/lead), creates a **signed upload URL** so the file is sent browser→Supabase directly (avoids server request-body limits on large files). |
+| `saveTaskAttachmentRecord` | Same access check, then infers type from extension and inserts the `task_attachments` row + `files_uploaded` activity. Called after the signed-URL upload completes. |
+| `deleteTaskAttachment` | Same access check (assignee / uploader / admin / dept lead), removes the object from the `task-attachments` bucket, deletes the row, and logs a `file_removed` activity. |
 | `getTaskAttachmentSignedUrls` | Same access check, then generates 1-hour signed URLs for each attachment. |
 
 Storage bucket: **`task-attachments`**, **private**, 50 MB file limit

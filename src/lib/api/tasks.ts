@@ -194,7 +194,10 @@ export function useAllBrandTasks(brandId?: string, options?: { enabled?: boolean
     enabled: options?.enabled ?? true,
     staleTime: 15_000,
     queryFn: async () => {
-      let q = supabase.from("tasks").select(TASK_LIST_SELECT).order("created_at", { ascending: false });
+      let q = supabase
+        .from("tasks")
+        .select(TASK_LIST_SELECT)
+        .order("created_at", { ascending: false });
       if (brandId) q = q.eq("brand_id", brandId);
       const { data, error } = await q;
       if (error) throw error;
@@ -395,23 +398,48 @@ export function useUploadAttachment() {
       const accessToken = session?.session?.access_token;
       if (!accessToken) throw new Error("Not authenticated");
 
-      const content = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(file);
-      });
+      const { getTaskAttachmentUploadUrl, saveTaskAttachmentRecord } =
+        await import("@/lib/server-functions");
 
-      const { uploadTaskAttachment } = await import("@/lib/server-functions");
-      await uploadTaskAttachment({
+      const { url, storagePath } = await getTaskAttachmentUploadUrl({
         data: {
           accessToken,
           taskId,
           fileName: file.name,
           contentType: file.type || "application/octet-stream",
-          content,
         },
       });
+      if (!url) throw new Error("Failed to prepare upload");
+
+      const response = await fetch(url, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+      });
+      if (!response.ok) throw new Error(`Upload failed (${response.status})`);
+
+      const size = `${(file.size / 1024).toFixed(0)} KB`;
+      await saveTaskAttachmentRecord({
+        data: { accessToken, taskId, fileName: file.name, size, storagePath },
+      });
+    },
+    onSuccess: (_, { taskId }) => {
+      qc.invalidateQueries({ queryKey: ["task", taskId] });
+      qc.invalidateQueries({ queryKey: ["task", "attachments", taskId] });
+    },
+  });
+}
+
+export function useDeleteTaskAttachment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ taskId, attachmentId }: { taskId: string; attachmentId: string }) => {
+      const { data: session } = await supabase.auth.getSession();
+      const accessToken = session?.session?.access_token;
+      if (!accessToken) throw new Error("Not authenticated");
+
+      const { deleteTaskAttachment } = await import("@/lib/server-functions");
+      await deleteTaskAttachment({ data: { accessToken, taskId, attachmentId } });
     },
     onSuccess: (_, { taskId }) => {
       qc.invalidateQueries({ queryKey: ["task", taskId] });

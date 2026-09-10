@@ -13,17 +13,12 @@ async function getUserPermissionIds(
   return new Set(((data ?? []) as { permission_id: string }[]).map((p) => p.permission_id));
 }
 
-function isUserAdmin(
-  role: string | null | undefined,
-  perms: Set<string>,
-): boolean {
+function isUserAdmin(role: string | null | undefined, perms: Set<string>): boolean {
   return role === "admin" || perms.has("admin_manage_brands");
 }
 
 export const setProfilePermissions = createServerFn({ method: "POST" as const })
-  .validator(
-    (data: { accessToken: string; profileId: string; permissionIds: string[] }) => data,
-  )
+  .validator((data: { accessToken: string; profileId: string; permissionIds: string[] }) => data)
   .handler(async ({ data }) => {
     const userClient = createClient(
       process.env.VITE_SUPABASE_URL!,
@@ -309,15 +304,9 @@ export const adminDeleteUser = createServerFn({ method: "POST" as const })
     }
   });
 
-export const uploadTaskAttachment = createServerFn({ method: "POST" as const })
+export const getTaskAttachmentUploadUrl = createServerFn({ method: "POST" as const })
   .validator(
-    (data: {
-      accessToken: string;
-      taskId: string;
-      fileName: string;
-      contentType: string;
-      content: string;
-    }) => data,
+    (data: { accessToken: string; taskId: string; fileName: string; contentType: string }) => data,
   )
   .handler(async ({ data }) => {
     const userClient = createClient(
@@ -359,15 +348,62 @@ export const uploadTaskAttachment = createServerFn({ method: "POST" as const })
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
 
-    const path = `tasks/${data.taskId}/${Date.now()}-${data.fileName}`;
-    const buffer = Buffer.from(data.content, "base64");
+    const storagePath = `tasks/${data.taskId}/${Date.now()}-${data.fileName}`;
 
-    const { error: uploadError } = await adminClient.storage
+    const { data: signed, error: signError } = await adminClient.storage
       .from("task-attachments")
-      .upload(path, buffer, {
-        contentType: data.contentType || "application/octet-stream",
-      });
-    if (uploadError) throw new Error(uploadError.message || "Failed to upload file");
+      .createSignedUploadUrl(storagePath, { upsert: false });
+    if (signError || !signed?.signedUrl) {
+      throw new Error(signError?.message || "Failed to prepare file upload");
+    }
+
+    return { url: signed.signedUrl, storagePath };
+  });
+
+export const saveTaskAttachmentRecord = createServerFn({ method: "POST" as const })
+  .validator(
+    (data: {
+      accessToken: string;
+      taskId: string;
+      fileName: string;
+      size: string;
+      storagePath: string;
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const userClient = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.VITE_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: `Bearer ${data.accessToken}` } } },
+    );
+
+    const {
+      data: { user },
+    } = await userClient.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
+
+    const { data: task } = await userClient
+      .from("tasks")
+      .select("id, assigned_to, department_id")
+      .eq("id", data.taskId)
+      .single();
+    if (!task) throw new Error("Task not found");
+
+    const { data: profile } = await userClient
+      .from("profiles")
+      .select("role, department_id")
+      .eq("id", user.id)
+      .single();
+    const perms = await getUserPermissionIds(userClient, user.id);
+    const isAdmin = isUserAdmin(profile?.role, perms);
+    const sameDept = profile?.department_id === task.department_id;
+    const canUpload =
+      task.assigned_to === user.id ||
+      isAdmin ||
+      (sameDept && (perms.has("tasks_upload_files") || perms.has("dashboard_department_tasks")));
+    if (!canUpload) {
+      throw new Error("Forbidden: you do not have access to this task");
+    }
 
     const ext = data.fileName.split(".").pop()?.toLowerCase() ?? "";
     const type = ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext)
@@ -378,12 +414,17 @@ export const uploadTaskAttachment = createServerFn({ method: "POST" as const })
           ? "document"
           : "other";
 
+    const adminClient = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+
     const { error: dbError } = await adminClient.from("task_attachments").insert({
       task_id: data.taskId,
       name: data.fileName,
       type,
-      size: `${(buffer.byteLength / 1024).toFixed(0)} KB`,
-      storage_path: path,
+      size: data.size,
+      storage_path: data.storagePath,
       uploaded_by: user.id,
     });
     if (dbError) throw new Error(dbError.message || "Failed to save attachment");
@@ -396,7 +437,84 @@ export const uploadTaskAttachment = createServerFn({ method: "POST" as const })
     });
     if (actError) throw new Error(actError.message || "Failed to log activity");
 
-    return { path };
+    return { ok: true };
+  });
+
+export const deleteTaskAttachment = createServerFn({ method: "POST" as const })
+  .validator((data: { accessToken: string; taskId: string; attachmentId: string }) => data)
+  .handler(async ({ data }) => {
+    const userClient = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.VITE_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: `Bearer ${data.accessToken}` } } },
+    );
+
+    const {
+      data: { user },
+    } = await userClient.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
+
+    const { data: task } = await userClient
+      .from("tasks")
+      .select("id, assigned_to, department_id")
+      .eq("id", data.taskId)
+      .single();
+    if (!task) throw new Error("Task not found");
+
+    const { data: profile } = await userClient
+      .from("profiles")
+      .select("role, department_id")
+      .eq("id", user.id)
+      .single();
+    const perms = await getUserPermissionIds(userClient, user.id);
+    const isAdmin = isUserAdmin(profile?.role, perms);
+    const sameDept = profile?.department_id === task.department_id;
+
+    const adminClient = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+
+    const { data: attachment } = await adminClient
+      .from("task_attachments")
+      .select("id, name, storage_path, uploaded_by")
+      .eq("id", data.attachmentId)
+      .eq("task_id", data.taskId)
+      .single();
+    if (!attachment) throw new Error("Attachment not found");
+
+    const canDelete =
+      task.assigned_to === user.id ||
+      attachment.uploaded_by === user.id ||
+      isAdmin ||
+      (sameDept && (perms.has("tasks_upload_files") || perms.has("dashboard_department_tasks")));
+    if (!canDelete) {
+      throw new Error("Forbidden: you do not have access to delete this file");
+    }
+
+    if (attachment.storage_path) {
+      const { error: storageError } = await adminClient.storage
+        .from("task-attachments")
+        .remove([attachment.storage_path]);
+      if (storageError) throw new Error(storageError.message || "Failed to delete file");
+    }
+
+    const { error: dbError } = await adminClient
+      .from("task_attachments")
+      .delete()
+      .eq("id", data.attachmentId)
+      .eq("task_id", data.taskId);
+    if (dbError) throw new Error(dbError.message || "Failed to delete attachment");
+
+    const { error: actError } = await adminClient.from("task_activities").insert({
+      task_id: data.taskId,
+      action: "file_removed",
+      user_id: user.id,
+      description: `Removed ${attachment.name}`,
+    });
+    if (actError) throw new Error(actError.message || "Failed to log activity");
+
+    return { ok: true };
   });
 
 export const getTaskAttachmentSignedUrls = createServerFn({ method: "POST" as const })

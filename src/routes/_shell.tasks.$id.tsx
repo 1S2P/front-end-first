@@ -25,6 +25,7 @@ import {
   Circle,
   User,
   Play,
+  Trash2,
 } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import {
@@ -39,7 +40,9 @@ import {
   useTaskAttachmentSignedUrls,
   useWorkflowProgress,
   useStartTask,
+  useDeleteTaskAttachment,
   type TaskWithRelations,
+  type TaskAttachment,
 } from "@/lib/api/tasks";
 import { useProfiles } from "@/lib/api/admin";
 import {
@@ -50,6 +53,16 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -85,7 +98,7 @@ const STATUS_STYLES: Record<TaskStatus, string> = {
 
 function TaskDetail() {
   const { id } = Route.useParams();
-  const { currentUser, currentRole } = useApp();
+  const { currentUser, currentRole, hasPermission } = useApp();
   const { data: task, isLoading } = useTask(id);
   const submitTask = useSubmitTask();
   const withdrawSubmission = useWithdrawSubmission();
@@ -93,6 +106,7 @@ function TaskDetail() {
   const updateChecklist = useUpdateChecklist();
   const addComment = useAddComment();
   const uploadAttachment = useUploadAttachment();
+  const deleteAttachment = useDeleteTaskAttachment();
   const startTask = useStartTask();
   const revisionAssignee = useRevisionAssignee(task);
   const { data: signedAttachments } = useTaskAttachmentSignedUrls(id);
@@ -103,6 +117,7 @@ function TaskDetail() {
   const [revisionOpen, setRevisionOpen] = useState(false);
   const [revisionMode, setRevisionMode] = useState<"previous" | "specific">("previous");
   const [revisionAssigneeId, setRevisionAssigneeId] = useState("");
+  const [attachmentToDelete, setAttachmentToDelete] = useState<TaskAttachment | null>(null);
 
   if (isLoading) {
     return (
@@ -137,6 +152,12 @@ function TaskDetail() {
   const comments = t.task_comments ?? [];
   const activities = t.task_activities ?? [];
 
+  const canDeleteFile = (f: TaskAttachment) =>
+    currentUser != null &&
+    (currentUser.id === f.uploaded_by ||
+      currentUser.id === task.assigned_to ||
+      hasPermission("admin_manage_brands"));
+
   const isOverdue =
     task.due_date &&
     task.due_date < new Date().toISOString().split("T")[0] &&
@@ -144,20 +165,15 @@ function TaskDetail() {
   const canSubmit =
     task.status === "ready" || task.status === "in_progress" || task.status === "needs_revision";
   const canStart =
-    task.status === "ready" &&
-    currentUser != null &&
-    task.assigned_to === currentUser.id;
-  const canWithdraw =
-    task.status === "waiting_review" && !task.reviewed_at && task.submitted_at;
+    task.status === "ready" && currentUser != null && task.assigned_to === currentUser.id;
+  const canWithdraw = task.status === "waiting_review" && !task.reviewed_at && task.submitted_at;
   const canReview =
     task.status === "waiting_review" &&
     !task.reviewed_at &&
     task.approval_required &&
     currentUser != null &&
     task.assigned_to !== currentUser.id &&
-    (task.approver_id != null
-      ? currentUser.id === task.approver_id
-      : currentRole === "admin");
+    (task.approver_id != null ? currentUser.id === task.approver_id : currentRole === "admin");
 
   const handleSubmit = async () => {
     try {
@@ -251,6 +267,20 @@ function TaskDetail() {
       toast.error("Failed to upload file");
     }
     e.target.value = "";
+  };
+
+  const handleDeleteAttachment = async () => {
+    if (!attachmentToDelete) return;
+    try {
+      await deleteAttachment.mutateAsync({
+        taskId: task.id,
+        attachmentId: attachmentToDelete.id,
+      });
+      toast.success("File deleted");
+      setAttachmentToDelete(null);
+    } catch {
+      toast.error("Failed to delete file");
+    }
   };
 
   return (
@@ -448,6 +478,18 @@ function TaskDetail() {
                           {f.size} · v{f.version}
                         </div>
                       </div>
+                      {canDeleteFile(f) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          title="Delete file"
+                          onClick={() => setAttachmentToDelete(f)}
+                          disabled={deleteAttachment.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   );
                 })
@@ -554,7 +596,9 @@ function TaskDetail() {
                   <div className="flex items-center gap-1.5">
                     {t.designated_approver && (
                       <Avatar className="h-5 w-5">
-                        <AvatarFallback className={cn("text-[8px]", t.designated_approver.avatar_color)}>
+                        <AvatarFallback
+                          className={cn("text-[8px]", t.designated_approver.avatar_color)}
+                        >
                           {t.designated_approver.initials}
                         </AvatarFallback>
                       </Avatar>
@@ -757,6 +801,33 @@ function TaskDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={attachmentToDelete != null}
+        onOpenChange={(open) => !open && setAttachmentToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete file?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove &ldquo;{attachmentToDelete?.name}&rdquo; from this task? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteAttachment();
+              }}
+              disabled={deleteAttachment.isPending}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {deleteAttachment.isPending ? "Deleting…" : "Delete file"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

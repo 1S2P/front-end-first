@@ -27,6 +27,7 @@ export type ActivityAction =
   | "revision_requested"
   | "redo"
   | "started"
+  | "file_removed"
   | "completed";
 export type NotificationType =
   | "task_assigned"
