@@ -353,11 +353,11 @@ export const getTaskAttachmentUploadUrl = createServerFn({ method: "POST" as con
     const { data: signed, error: signError } = await adminClient.storage
       .from("task-attachments")
       .createSignedUploadUrl(storagePath, { upsert: false });
-    if (signError || !signed?.signedUrl) {
+    if (signError || !signed?.signedUrl || !signed?.token) {
       throw new Error(signError?.message || "Failed to prepare file upload");
     }
 
-    return { url: signed.signedUrl, storagePath };
+    return { url: signed.signedUrl, storagePath, token: signed.token };
   });
 
 export const saveTaskAttachmentRecord = createServerFn({ method: "POST" as const })

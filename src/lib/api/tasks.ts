@@ -401,7 +401,7 @@ export function useUploadAttachment() {
       const { getTaskAttachmentUploadUrl, saveTaskAttachmentRecord } =
         await import("@/lib/server-functions");
 
-      const { url, storagePath } = await getTaskAttachmentUploadUrl({
+      const { token, storagePath } = await getTaskAttachmentUploadUrl({
         data: {
           accessToken,
           taskId,
@@ -409,14 +409,15 @@ export function useUploadAttachment() {
           contentType: file.type || "application/octet-stream",
         },
       });
-      if (!url) throw new Error("Failed to prepare upload");
+      if (!token || !storagePath) throw new Error("Failed to prepare upload");
 
-      const response = await fetch(url, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type || "application/octet-stream" },
-      });
-      if (!response.ok) throw new Error(`Upload failed (${response.status})`);
+      const { error: uploadError } = await supabase.storage
+        .from("task-attachments")
+        .uploadToSignedUrl(storagePath, token, file, {
+          upsert: false,
+          contentType: file.type || "application/octet-stream",
+        });
+      if (uploadError) throw uploadError;
 
       const size = `${(file.size / 1024).toFixed(0)} KB`;
       await saveTaskAttachmentRecord({
