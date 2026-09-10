@@ -400,21 +400,22 @@ function TaskDetail() {
                   const signed = signedAttachments?.find((s) => s.id === f.id);
                   const FileIcon =
                     f.type === "image" ? Image : f.type === "video" ? Video : FileText;
+                  const fileUrl = signed?.url;
                   return (
                     <div
                       key={f.id}
                       className="flex items-center gap-3 rounded-md border border-border/60 p-3 text-sm"
                     >
-                      {f.type === "image" && signed?.url ? (
+                      {f.type === "image" && fileUrl ? (
                         <a
-                          href={signed.url}
+                          href={fileUrl}
                           target="_blank"
                           rel="noreferrer"
                           className="shrink-0"
                           title={f.name}
                         >
                           <img
-                            src={signed.url}
+                            src={fileUrl}
                             alt={f.name}
                             className="h-12 w-12 rounded-md object-cover border border-border/60"
                           />
@@ -424,9 +425,9 @@ function TaskDetail() {
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="font-medium truncate">
-                          {signed?.url ? (
+                          {fileUrl ? (
                             <a
-                              href={signed.url}
+                              href={fileUrl}
                               target="_blank"
                               rel="noreferrer"
                               className="hover:underline"
@@ -434,7 +435,13 @@ function TaskDetail() {
                               {f.name}
                             </a>
                           ) : (
-                            f.name
+                            <button
+                              type="button"
+                              className="text-left hover:underline cursor-pointer"
+                              onClick={() => toast.info("File link is loading, please wait…")}
+                            >
+                              {f.name}
+                            </button>
                           )}
                         </div>
                         <div className="text-xs text-muted-foreground">

@@ -449,10 +449,11 @@ export const getTaskAttachmentSignedUrls = createServerFn({ method: "POST" as co
 
     const result = [];
     for (const attachment of attachments ?? []) {
+      if (!attachment.storage_path) continue;
       const { data: signed, error: signError } = await adminClient.storage
         .from("task-attachments")
         .createSignedUrl(attachment.storage_path, 3600);
-      if (signError) throw new Error(signError.message || "Failed to sign attachment URL");
+      if (signError) continue;
       result.push({
         id: attachment.id,
         name: attachment.name,
