@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PageHeader } from "@/components/app-shell";
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,6 @@ import {
 import { Plus, Building2 } from "lucide-react";
 import { useState } from "react";
 import { useBrands, useCreateBrand } from "@/lib/api/admin";
-import { useProjects } from "@/lib/api/admin";
 import { useRequirePermission } from "@/lib/app-context";
 import { toast } from "sonner";
 
@@ -62,6 +61,7 @@ function BrandManagement() {
   return (
     <>
       <PageHeader
+        eyebrow="Admin · Workspaces"
         title="Brands"
         description="Each brand is a fully scoped workspace with separate projects, tasks, and analytics."
         actions={

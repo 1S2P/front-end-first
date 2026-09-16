@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PageHeader } from "@/components/app-shell";
+import { PageHeader } from "@/components/page-header";
+import { EmployeeAvatar } from "@/components/employee-avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ShieldCheck, Search, Save, AlertCircle } from "lucide-react";
@@ -50,6 +50,7 @@ function RolesAndPermissions() {
   return (
     <>
       <PageHeader
+        eyebrow="Admin · Access"
         title="Roles & Permissions"
         description="Pick an employee and toggle their permissions. Admins automatically have every permission."
       />
@@ -119,11 +120,9 @@ function EmployeeRow({
         selected ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-muted",
       )}
     >
-      <Avatar className="h-8 w-8">
-        <AvatarFallback className={cn("text-xs", profile.avatar_color)}>
-          {profile.initials}
-        </AvatarFallback>
-      </Avatar>
+      <EmployeeAvatar
+        profile={{ name: profile.name, initials: profile.initials, avatar_color: profile.avatar_color }}
+      />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{profile.name}</div>
         <div className="truncate text-xs text-muted-foreground">
@@ -227,11 +226,10 @@ function PermissionEditor({
     <div className="space-y-4">
       <Card>
         <CardContent className="flex flex-wrap items-center gap-3 p-4">
-          <Avatar className="h-9 w-9">
-            <AvatarFallback className={cn("text-xs", profile?.avatar_color)}>
-              {profile?.initials}
-            </AvatarFallback>
-          </Avatar>
+          <EmployeeAvatar
+            profile={{ name: profile?.name, initials: profile?.initials, avatar_color: profile?.avatar_color }}
+            size="lg"
+          />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold">{profile?.name}</span>

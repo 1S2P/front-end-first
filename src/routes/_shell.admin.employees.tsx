@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PageHeader } from "@/components/app-shell";
+import { PageHeader } from "@/components/page-header";
+import { EmployeeAvatar } from "@/components/employee-avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, KeyRound } from "lucide-react";
+import { Plus, Pencil, Trash2, KeyRound, Search } from "lucide-react";
 import {
   useProfiles,
   useBrands,
@@ -50,7 +50,6 @@ import {
   useDeleteUser,
 } from "@/lib/api/admin";
 import { useApp, useRequirePermission } from "@/lib/app-context";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 
@@ -104,6 +103,7 @@ const handleDelete = async () => {
   return (
     <>
       <PageHeader
+        eyebrow="Admin · People"
         title="Employees"
         description="Assign roles, departments, and multi-brand access."
         actions={
@@ -114,11 +114,15 @@ const handleDelete = async () => {
         }
       />
       <div className="mb-4 max-w-sm">
-        <Input
-          placeholder="Search employees..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search employees..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
       </div>
       {isLoading ? (
         <div className="flex items-center justify-center h-64 text-muted-foreground">
@@ -151,13 +155,9 @@ const handleDelete = async () => {
                     <TableRow key={e.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback
-                              className={cn("text-xs", e.avatar_color)}
-                            >
-                              {e.initials}
-                            </AvatarFallback>
-                          </Avatar>
+                          <EmployeeAvatar
+                            profile={{ name: e.name, initials: e.initials, avatar_color: e.avatar_color }}
+                          />
                           <div>
                             <div className="font-medium">{e.name}</div>
                             <div className="text-xs text-muted-foreground">

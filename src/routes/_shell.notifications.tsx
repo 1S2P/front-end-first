@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { PageHeader } from "@/components/app-shell";
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { useNotifications, useMarkAllRead, useMarkNotificationRead } from "@/lib/api/notifications";
-import { cn } from "@/lib/utils";
+import { cn, timeAgo } from "@/lib/utils";
 import type { NotificationType } from "@/lib/database.types";
 
 export const Route = createFileRoute("/_shell/notifications")({
@@ -105,6 +105,7 @@ function Notifications() {
   return (
     <>
       <PageHeader
+        eyebrow="Inbox"
         title="Notifications"
         description="All alerts across your tasks and workflows."
         actions={
@@ -153,7 +154,7 @@ function Notifications() {
                         {config.label}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        {formatTimeAgo(n.created_at)}
+                        {timeAgo(n.created_at)}
                       </span>
                     </div>
                     <div className="mt-1 text-sm">{n.message}</div>
@@ -167,17 +168,4 @@ function Notifications() {
       )}
     </>
   );
-}
-
-function formatTimeAgo(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  const diffHr = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHr / 24);
-  if (diffMin < 1) return "Just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHr < 24) return `${diffHr}h ago`;
-  return `${diffDay}d ago`;
 }

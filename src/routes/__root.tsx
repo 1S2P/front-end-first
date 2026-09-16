@@ -9,6 +9,7 @@ import {
   redirect,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AppProvider, useApp } from "@/lib/app-context";
 import { supabase } from "@/lib/supabase";
@@ -171,10 +172,12 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppProvider>
-        <AuthGate />
-        <Toaster position="bottom-right" richColors />
-      </AppProvider>
+      <TooltipProvider delayDuration={0}>
+        <AppProvider>
+          <AuthGate />
+          <Toaster position="bottom-right" richColors />
+        </AppProvider>
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }

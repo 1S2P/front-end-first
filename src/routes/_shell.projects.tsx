@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PageHeader } from "@/components/app-shell";
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +42,7 @@ function ProjectsPage() {
   const { currentBrandId } = useApp();
   const { data: brandProjects = [], isLoading } = useProjects(currentBrandId);
   const { data: brands = [] } = useBrands();
+  const brand = brands.find((b) => b.id === currentBrandId);
   const createProject = useCreateProject();
   const [showNew, setShowNew] = useState(false);
   const [name, setName] = useState("");
@@ -68,6 +69,7 @@ function ProjectsPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Work · Projects"
         title="Projects"
         description="Containers for workflows. Tasks are generated automatically."
         actions={
@@ -100,18 +102,27 @@ function ProjectsPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
                         <Briefcase className="h-4 w-4" />
                       </div>
-                      <div>
-                        <div className="font-medium">{p.name}</div>
-                        <div className="text-xs text-muted-foreground">{p.description}</div>
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{p.name}</div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {p.description || "No description"}
+                        </div>
                       </div>
                     </div>
                   </div>
                   <ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
                 </div>
                 <div className="mt-4 flex items-center gap-2">
+                  {brand?.color ? (
+                    <div
+                      className="flex h-4 w-4 rounded-full"
+                      style={{ backgroundColor: brand.color }}
+                      title={brand.name}
+                    />
+                  ) : null}
                   <Badge variant={p.status === "active" ? "default" : "secondary"}>
                     {p.status}
                   </Badge>

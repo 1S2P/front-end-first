@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef } from "react";
-import { PageHeader } from "@/components/app-shell";
+import { PageHeader } from "@/components/page-header";
+import { StatusBadge } from "@/components/status-badge";
+import { EmployeeAvatar } from "@/components/employee-avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import {
   Paperclip,
@@ -72,8 +73,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { TASK_STATUS_LABELS, type TaskStatus } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, timeAgo, formatDueDate } from "@/lib/utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_shell/tasks/$id")({
@@ -85,16 +85,6 @@ export const Route = createFileRoute("/_shell/tasks/$id")({
   }),
   component: TaskDetail,
 });
-
-const STATUS_STYLES: Record<TaskStatus, string> = {
-  ready: "bg-blue-100 text-blue-800",
-  in_progress: "bg-amber-100 text-amber-800",
-  waiting_review: "bg-purple-100 text-purple-800",
-  approved: "bg-emerald-100 text-emerald-800",
-  completed: "bg-gray-100 text-gray-600",
-  rejected: "bg-red-100 text-red-800",
-  needs_revision: "bg-orange-100 text-orange-800",
-};
 
 function TaskDetail() {
   const { id } = Route.useParams();
@@ -294,6 +284,7 @@ function TaskDetail() {
       </div>
 
       <PageHeader
+        eyebrow="Work · Task"
         title={task.title}
         description={`${task.id} · ${project?.name ?? "—"} · ${dept?.name ?? "—"}`}
         actions={
@@ -513,16 +504,12 @@ function TaskDetail() {
                   const commenter = c.profiles;
                   return (
                     <div key={c.id} className="flex gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className={cn("text-xs", commenter?.avatar_color)}>
-                          {commenter?.initials}
-                        </AvatarFallback>
-                      </Avatar>
+                      {commenter && <EmployeeAvatar profile={commenter} size="sm" />}
                       <div className="flex-1 rounded-lg bg-muted/60 p-3 text-sm">
                         <div className="mb-1 flex justify-between">
                           <span className="font-medium">{commenter?.name}</span>
                           <span className="text-xs text-muted-foreground">
-                            {formatTimeAgo(c.created_at)}
+                            {timeAgo(c.created_at)}
                           </span>
                         </div>
                         {c.text}
@@ -559,9 +546,7 @@ function TaskDetail() {
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <Row label="Status">
-                <Badge className={cn("text-[10px]", STATUS_STYLES[t.status])}>
-                  {TASK_STATUS_LABELS[t.status]}
-                </Badge>
+                <StatusBadge status={t.status} />
               </Row>
               <Row label="Priority">
                 <Badge
@@ -581,13 +566,7 @@ function TaskDetail() {
               <Separator />
               <Row label="Assigned">
                 <div className="flex items-center gap-1.5">
-                  {assignee && (
-                    <Avatar className="h-5 w-5">
-                      <AvatarFallback className={cn("text-[8px]", assignee.avatar_color)}>
-                        {assignee.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
+                  {assignee && <EmployeeAvatar profile={assignee} size="sm" />}
                   <span>{assignee?.name ?? "—"}</span>
                 </div>
               </Row>
@@ -595,13 +574,7 @@ function TaskDetail() {
                 <Row label="Approver">
                   <div className="flex items-center gap-1.5">
                     {t.designated_approver && (
-                      <Avatar className="h-5 w-5">
-                        <AvatarFallback
-                          className={cn("text-[8px]", t.designated_approver.avatar_color)}
-                        >
-                          {t.designated_approver.initials}
-                        </AvatarFallback>
-                      </Avatar>
+                      <EmployeeAvatar profile={t.designated_approver} size="sm" />
                     )}
                     <span>{t.designated_approver?.name ?? "—"}</span>
                   </div>
@@ -610,18 +583,14 @@ function TaskDetail() {
               {approver && (
                 <Row label="Reviewed by">
                   <div className="flex items-center gap-1.5">
-                    <Avatar className="h-5 w-5">
-                      <AvatarFallback className={cn("text-[8px]", approver.avatar_color)}>
-                        {approver.initials}
-                      </AvatarFallback>
-                    </Avatar>
+                    <EmployeeAvatar profile={approver} size="sm" />
                     <span>{approver.name}</span>
                   </div>
                 </Row>
               )}
               <Row label="Due Date">
-                <span className={isOverdue ? "text-destructive font-medium" : ""}>
-                  {task.due_date ?? "—"}
+                <span className={cn(isOverdue && "text-destructive font-medium")}>
+                  {task.due_date ? formatDueDate(task.due_date) : "—"}
                 </span>
               </Row>
               <Row label="Est. Time">{task.estimated_time ?? "—"}</Row>
@@ -684,20 +653,14 @@ function TaskDetail() {
                         ) : (
                           <span>Unassigned</span>
                         )}
-                        {step.state === "active" && (
-                          <Badge
-                            variant={
-                              step.taskStatus === "waiting_review"
-                                ? "default"
-                                : step.taskStatus === "needs_revision"
-                                  ? "destructive"
-                                  : "secondary"
-                            }
-                            className="ml-1 text-[10px]"
-                          >
-                            {step.taskStatus ? TASK_STATUS_LABELS[step.taskStatus] : "Current"}
-                          </Badge>
-                        )}
+                        {step.state === "active" &&
+                          (step.taskStatus ? (
+                            <StatusBadge status={step.taskStatus} className="ml-1" />
+                          ) : (
+                            <Badge variant="secondary" className="ml-1 text-[10px]">
+                              Current
+                            </Badge>
+                          ))}
                         {step.state === "done" && (
                           <span className="ml-1 text-success">Completed</span>
                         )}
@@ -727,7 +690,7 @@ function TaskDetail() {
                     <div key={a.id} className="border-l-2 border-primary/30 pl-3">
                       <div className="text-sm">{a.description}</div>
                       <div className="text-[10px] text-muted-foreground mt-0.5">
-                        {actor?.name ?? "System"} · {formatTimeAgo(a.created_at)}
+                        {actor?.name ?? "System"} · {timeAgo(a.created_at)}
                       </div>
                     </div>
                   );
@@ -839,17 +802,4 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <span>{children}</span>
     </div>
   );
-}
-
-function formatTimeAgo(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  const diffHr = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHr / 24);
-  if (diffMin < 1) return "Just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHr < 24) return `${diffHr}h ago`;
-  return `${diffDay}d ago`;
 }

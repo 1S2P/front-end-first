@@ -1,167 +1,367 @@
 import { Link } from "@tanstack/react-router";
-import { PageHeader } from "@/components/app-shell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertTriangle,
+  ArrowRight,
+  CalendarClock,
+  CircleDashed,
+  ClipboardCheck,
+  FolderOpen,
+  Play,
+  Plus,
+  Timer,
+  Workflow,
+} from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { KpiCard } from "@/components/kpi-card";
+import { SectionHeading, EmptyState } from "@/components/section-heading";
+import { StatusBadge } from "@/components/status-badge";
+import { EmployeeAvatar } from "@/components/employee-avatar";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { FolderOpen, Workflow, Activity, ArrowRight, Plus } from "lucide-react";
-import { StatCard } from "@/components/dashboard/stat-card";
 import { useApp } from "@/lib/app-context";
-import { useProjects } from "@/lib/api/admin";
-import { useWorkflowTemplates, useWorkflowInstances } from "@/lib/api/workflows";
-import { useAllBrandTasks } from "@/lib/api/tasks";
+import { useBrands, useProjects } from "@/lib/api/admin";
+import {
+  useWorkflowTemplates,
+  useWorkflowInstances,
+  useWorkflowStatusBoard,
+} from "@/lib/api/workflows";
+import { useAllBrandTasks, usePendingReviews } from "@/lib/api/tasks";
+import { cn, formatHours, isDueToday, isOverdue, timeAgo, todayISO } from "@/lib/utils";
 
 export function AdminDashboard() {
-  const { currentBrandId } = useApp();
+  const { currentBrandId, currentUser } = useApp();
+  const { data: brands = [] } = useBrands();
   const { data: brandProjects = [] } = useProjects(currentBrandId);
   const { data: brandWorkflows = [] } = useWorkflowTemplates(currentBrandId);
   const { data: runningInstances = [] } = useWorkflowInstances(currentBrandId);
   const { data: allTasks = [] } = useAllBrandTasks(currentBrandId, { enabled: true });
+  const { data: pendingReviews = [] } = usePendingReviews(currentBrandId);
+  const { data: board = [] } = useWorkflowStatusBoard(currentBrandId ?? null);
 
+  const brand = brands.find((b) => b.id === currentBrandId);
+  const today = todayISO();
+
+  const activeProjects = brandProjects.filter((p) => p.status === "active");
   const runningWorkflows = runningInstances.filter((w) => w.status === "running");
-  const pendingReviews = allTasks.filter(
-    (t) => t.status === "waiting_review" && !t.reviewed_at && t.approver_id === null,
-  );
-  const today = new Date().toISOString().split("T")[0];
-  const overdue = allTasks.filter(
-    (t) => t.due_date && t.due_date < today && t.status !== "completed",
-  );
+  const overdueTasks = allTasks.filter((t) => isOverdue(t.due_date, t.status));
+  const dueTodayCount = allTasks.filter((t) => isDueToday(t.due_date, t.status)).length;
+
+  const templateById = new Map(brandWorkflows.map((w) => [w.id, w]));
+
+  const bottlenecks = [...board]
+    .sort((a, b) => b.hours_in_step - a.hours_in_step)
+    .slice(0, 5);
+
+  const firstName = currentUser?.name.split(" ")[0] ?? "there";
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="mx-auto w-full max-w-6xl">
       <PageHeader
-        title="Admin Dashboard"
-        description="Everything across your workspace."
+        eyebrow={brand ? `${brand.name} · Admin` : "Admin"}
+        title={`Welcome back, ${firstName}`}
+        description={`A live read on operations — ${activeProjects.length} active project${
+          activeProjects.length === 1 ? "" : "s"
+        }, ${runningWorkflows.length} workflow${
+          runningWorkflows.length === 1 ? "" : "s"
+        } in progress.`}
         actions={
-          <Button asChild size="sm">
-            <Link to="/workflows">
-              <Plus className="mr-1 h-4 w-4" />
-              New workflow
-            </Link>
-          </Button>
+          <>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/workflows/builder" search={{ templateId: "" }}>
+                <Plus className="mr-1.5 h-4 w-4" aria-hidden />
+                New workflow
+              </Link>
+            </Button>
+            <Button size="sm" asChild>
+              <Link to="/workflows">
+                <Play className="mr-1.5 h-4 w-4" aria-hidden />
+                Run workflow
+              </Link>
+            </Button>
+          </>
         }
       />
 
-      <section
-        aria-label="Workspace statistics"
-        className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4"
-      >
-        <StatCard label="Projects" value={brandProjects.length} icon={FolderOpen} tone="primary" />
-        <StatCard
-          label="Running Workflows"
+      {/* KPI row */}
+      <section aria-label="Workspace statistics" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KpiCard
+          label="Active projects"
+          value={activeProjects.length}
+          icon={FolderOpen}
+          tone="primary"
+          hint={brandProjects.length > activeProjects.length ? `${brandProjects.length - activeProjects.length} archived` : undefined}
+          to="/projects"
+        />
+        <KpiCard
+          label="Running workflows"
           value={runningWorkflows.length}
           icon={Workflow}
-          tone="success"
+          tone="info"
+          hint={`${brandWorkflows.length} templates`}
+          to="/workflows"
         />
-        <StatCard
-          label="Pending Reviews"
+        <KpiCard
+          label="Pending reviews"
           value={pendingReviews.length}
-          icon={Activity}
+          icon={ClipboardCheck}
           tone={pendingReviews.length > 0 ? "warning" : "default"}
-          hint={pendingReviews.length > 0 ? "Awaiting action" : ""}
+          hint={pendingReviews.length > 0 ? "Awaiting action" : "Queue clear"}
+          to="/tasks"
         />
-        <StatCard
-          label="Overdue Tasks"
-          value={overdue.length}
-          icon={Activity}
-          tone={overdue.length > 0 ? "destructive" : "default"}
-          hint={overdue.length > 0 ? "Needs attention" : ""}
+        <KpiCard
+          label="Overdue tasks"
+          value={overdueTasks.length}
+          icon={AlertTriangle}
+          tone={overdueTasks.length > 0 ? "danger" : "default"}
+          hint={overdueTasks.length > 0 ? `${dueTodayCount} due today` : "On schedule"}
+          to="/tasks"
         />
       </section>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <Shortcut
-          to="/projects"
-          title="Manage Projects"
-          body="Create and manage project containers for workflows."
+      {/* Action required — pending reviews */}
+      <section className="mt-8">
+        <SectionHeading
+          title="Needs your review"
+          description={
+            pendingReviews.length > 0
+              ? `${pendingReviews.length} submission${pendingReviews.length === 1 ? "" : "s"} waiting on a decision`
+              : "Approvals routed to you appear here"
+          }
+          icon={ClipboardCheck}
+          viewAllTo="/tasks"
+          viewAllLabel="All tasks"
         />
-        <Shortcut
-          to="/workflows"
-          title="Workflow Library"
-          body="Design and manage reusable workflow templates."
-        />
-        <Shortcut
-          to="/admin/employees"
-          title="Employees"
-          body="Assign people to brands and departments."
-        />
-      </div>
-
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Recent Projects</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {brandProjects.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">No projects yet</p>
-            ) : (
-              brandProjects.slice(0, 4).map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between rounded-md border border-border/60 p-3"
-                >
-                  <div>
-                    <div className="font-medium">{p.name}</div>
-                    <div className="text-xs text-muted-foreground">{p.description}</div>
-                  </div>
-                  <Badge variant={p.status === "active" ? "default" : "secondary"}>
-                    {p.status}
-                  </Badge>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Running Workflows</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {runningWorkflows.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">No running workflows</p>
-            ) : (
-              runningWorkflows.map((wi) => {
-                const template = brandWorkflows.find((w) => w.id === wi.template_id);
+        {pendingReviews.length === 0 ? (
+          <EmptyState
+            icon={ClipboardCheck}
+            title="Nothing waiting on you"
+            description="When someone submits work for approval, it lands here first."
+          />
+        ) : (
+          <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+            <div className="divide-y divide-border/60">
+              {pendingReviews.slice(0, 5).map((t) => {
+                const overdue = isOverdue(t.due_date, t.status);
                 return (
-                  <div
-                    key={wi.id}
-                    className="flex items-center justify-between rounded-md border border-border/60 p-3"
+                  <Link
+                    key={t.id}
+                    to="/tasks/$id"
+                    params={{ id: t.id }}
+                    className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
                   >
-                    <div>
-                      <div className="font-medium">
-                        {(wi as any).workflow_templates?.name || template?.name || "Unknown"}
+                    <EmployeeAvatar profile={t.assigned_profile} size="lg" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">{t.title}</p>
+                      <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+                        <span>{t.assigned_profile?.name ?? "Unassigned"}</span>
+                        {t.project?.name && (
+                          <>
+                            <span aria-hidden>·</span>
+                            <span className="truncate">{t.project.name}</span>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                    <div className="hidden shrink-0 items-center gap-1.5 text-xs text-muted-foreground sm:flex">
+                      <Timer className="h-3.5 w-3.5" aria-hidden />
+                      {t.submitted_at ? `${timeAgo(t.submitted_at)} waiting` : "—"}
+                    </div>
+                    <StatusBadge
+                      status={t.status}
+                      attention={overdue ? "overdue" : null}
+                      className="hidden md:inline-flex"
+                    />
+                    <ArrowRight
+                      className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+                      aria-hidden
+                    />
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Running workflows + recent projects */}
+      <div className="mt-8 grid gap-4 lg:grid-cols-5">
+        <section className="lg:col-span-3">
+          <SectionHeading
+            title="Running workflows"
+            description="Live instances and how far each has progressed"
+            icon={Workflow}
+            viewAllTo="/workflows/status"
+            viewAllLabel="Status board"
+          />
+          <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+            {runningWorkflows.length === 0 ? (
+              <EmptyState
+                icon={Workflow}
+                title="No workflows running"
+                description="Start a workflow from the library to kick off an automated chain of tasks."
+                action={
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/workflows">Open workflow library</Link>
+                  </Button>
+                }
+                className="border-0"
+                size="sm"
+              />
+            ) : (
+              <div className="divide-y divide-border/60">
+                {runningWorkflows.slice(0, 5).map((wi) => {
+                  const template = templateById.get(wi.template_id);
+                  const total = template?.workflow_steps?.length ?? 0;
+                  const done = Math.min(wi.current_step_index ?? 0, total || Infinity);
+                  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                  return (
+                    <div key={wi.id} className="px-4 py-3.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {template?.name ?? "Unknown workflow"}
+                          </p>
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {(wi as unknown as { projects?: { name?: string } | null }).projects?.name ?? "No project"}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+                          {total > 0 ? `${done}/${total}` : `Step ${done + 1}`}
+                        </span>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        Step {(wi.current_step_index ?? 0) + 1}
+                      <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary transition-[width] duration-500"
+                          style={{ width: `${total > 0 ? pct : 5}%` }}
+                        />
                       </div>
                     </div>
-                    <Badge variant="outline">{wi.status}</Badge>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
+          </div>
+        </section>
 
-function Shortcut({ to, title, body }: { to: string; title: string; body: string }) {
-  return (
-    <Card className="group cursor-pointer transition-colors hover:border-primary/50">
-      <CardHeader>
-        <CardTitle className="text-base flex items-center justify-between">
-          {title}
-          <ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">{body}</p>
-        <Button variant="outline" size="sm" asChild>
-          <Link to={to}>Open</Link>
-        </Button>
-      </CardContent>
-    </Card>
+        <section className="lg:col-span-2">
+          <SectionHeading title="Recent projects" icon={FolderOpen} viewAllTo="/projects" />
+          <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+            {brandProjects.length === 0 ? (
+              <EmptyState
+                icon={FolderOpen}
+                title="No projects yet"
+                description="Projects group related workflows under one initiative."
+                action={
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/projects">Create a project</Link>
+                  </Button>
+                }
+                className="border-0"
+                size="sm"
+              />
+            ) : (
+              <div className="divide-y divide-border/60">
+                {brandProjects.slice(0, 5).map((p) => (
+                  <div key={p.id} className="flex items-start justify-between gap-3 px-4 py-3.5">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{p.name}</p>
+                      {p.description && (
+                        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{p.description}</p>
+                      )}
+                    </div>
+                    <span
+                      className={cn(
+                        "mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                        p.status === "active"
+                          ? "bg-success/10 text-success"
+                          : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      <span
+                        className={cn("h-1.5 w-1.5 rounded-full", p.status === "active" ? "bg-success" : "bg-muted-foreground/50")}
+                        aria-hidden
+                      />
+                      {p.status === "active" ? "Active" : "Archived"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* Workflow bottlenecks */}
+      <section className="mt-8">
+        <SectionHeading
+          title="Workflow bottlenecks"
+          description="Active steps that have been sitting the longest"
+          icon={Timer}
+          viewAllTo="/workflows/status"
+          viewAllLabel="Status board"
+        />
+        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+          {bottlenecks.length === 0 ? (
+            <EmptyState
+              icon={CircleDashed}
+              title="No steps in flight"
+              description="Once workflows start moving, the slowest steps surface here."
+              className="border-0"
+              size="sm"
+            />
+          ) : (
+            <div className="divide-y divide-border/60">
+              {bottlenecks.map((row) => (
+                <Link
+                  key={row.task_id}
+                  to="/tasks/$id"
+                  params={{ id: row.task_id }}
+                  className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
+                >
+                  <EmployeeAvatar
+                    profile={{
+                      initials: row.assignee_initials,
+                      avatar_color: row.assignee_avatar_color,
+                    }}
+                    size="lg"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">{row.task_title}</p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {row.workflow_name}
+                      {row.current_step_name && (
+                        <>
+                          <span aria-hidden> · </span>
+                          {row.current_step_name}
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <div className="hidden shrink-0 items-center gap-1.5 text-xs text-muted-foreground sm:flex">
+                    <CalendarClock className="h-3.5 w-3.5" aria-hidden />
+                    <span
+                      className={cn(
+                        row.is_overdue ? "font-medium text-destructive" : "tabular-nums",
+                      )}
+                    >
+                      {formatHours(row.hours_in_step)} in step
+                    </span>
+                  </div>
+                  {row.is_overdue && (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
+                      <AlertTriangle className="h-3 w-3" aria-hidden />
+                      Overdue
+                    </span>
+                  )}
+                  <ArrowRight
+                    className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+                    aria-hidden
+                  />
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }

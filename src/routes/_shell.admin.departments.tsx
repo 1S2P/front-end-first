@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PageHeader } from "@/components/app-shell";
+import { PageHeader } from "@/components/page-header";
+import { EmployeeAvatar } from "@/components/employee-avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +66,7 @@ function DepartmentManagement() {
   return (
     <>
       <PageHeader
+        eyebrow="Admin · Structure"
         title="Departments"
         description="Team lead and team members hierarchy per department."
         actions={
@@ -96,9 +98,15 @@ function DepartmentManagement() {
                     <Badge variant="secondary">Active</Badge>
                   </div>
                   {lead && (
-                    <div className="mt-4 text-sm">
-                      <span className="text-muted-foreground">Team Lead: </span>
-                      <span className="font-medium">{lead.name}</span>
+                    <div className="mt-4 flex items-center gap-2 text-sm">
+                      <EmployeeAvatar
+                        profile={{ name: lead.name, initials: lead.initials, avatar_color: lead.avatar_color }}
+                        size="md"
+                      />
+                      <span>
+                        <span className="text-muted-foreground">Team Lead: </span>
+                        <span className="font-medium">{lead.name}</span>
+                      </span>
                     </div>
                   )}
                 </CardContent>

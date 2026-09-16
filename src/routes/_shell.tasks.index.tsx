@@ -1,18 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { PageHeader } from "@/components/app-shell";
+import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/section-heading";
+import { StatusBadge, STATUS_META } from "@/components/status-badge";
+import { EmployeeAvatar } from "@/components/employee-avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { LayoutGrid, List, Play } from "lucide-react";
+import { LayoutGrid, List, Play, ClipboardList } from "lucide-react";
 import { useState } from "react";
 import { useApp } from "@/lib/app-context";
 import {
@@ -24,8 +17,8 @@ import {
   useStartTask,
 } from "@/lib/api/tasks";
 import { useDepartments } from "@/lib/api/admin";
-import { TASK_STATUS_LABELS, BOARD_COLUMNS, type TaskStatus } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { BOARD_COLUMNS, type TaskStatus } from "@/lib/types";
+import { cn, formatDueDate, isOverdue } from "@/lib/utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_shell/tasks/")({
@@ -39,25 +32,13 @@ export const Route = createFileRoute("/_shell/tasks/")({
   component: MyTasks,
 });
 
-const STATUS_STYLES: Record<TaskStatus, string> = {
-  ready: "bg-blue-50 text-blue-700 border-blue-200",
-  in_progress: "bg-amber-50 text-amber-700 border-amber-200",
-  waiting_review: "bg-purple-50 text-purple-700 border-purple-200",
-  approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  completed: "bg-gray-50 text-gray-500 border-gray-200",
-  rejected: "bg-red-50 text-red-700 border-red-200",
-  needs_revision: "bg-orange-50 text-orange-700 border-orange-200",
-};
-
-const BOARD_COLUMN_CONFIG: Record<TaskStatus, { label: string; bg: string; dot: string }> = {
-  ready: { label: "Ready", bg: "bg-blue-50/50", dot: "bg-blue-500" },
-  in_progress: { label: "In Progress", bg: "bg-amber-50/50", dot: "bg-amber-500" },
-  waiting_review: { label: "In Review", bg: "bg-purple-50/50", dot: "bg-purple-500" },
-  approved: { label: "Approved", bg: "bg-emerald-50/50", dot: "bg-emerald-500" },
-  completed: { label: "Completed", bg: "bg-gray-50/50", dot: "bg-gray-400" },
-  rejected: { label: "Rejected", bg: "bg-red-50/50", dot: "bg-red-500" },
-  needs_revision: { label: "Needs Revision", bg: "bg-orange-50/50", dot: "bg-orange-500" },
-};
+function priorityDot(priority: "high" | "medium" | "low") {
+  return priority === "high"
+    ? "bg-destructive"
+    : priority === "medium"
+      ? "bg-warning"
+      : "bg-muted-foreground/50";
+}
 
 type SupabaseTask = {
   id: string;
@@ -178,7 +159,10 @@ function MyTasks() {
 
   return (
     <>
-      <PageHeader title={tabTitle} description={tabDescription}
+      <PageHeader
+        eyebrow="Work"
+        title={tabTitle}
+        description={tabDescription}
         actions={
           <div className="flex gap-1 rounded-lg border border-border bg-card p-1">
             <Button
@@ -206,36 +190,67 @@ function MyTasks() {
           setActiveTab(v as "my" | "dept" | "reviews" | "reassigned" | "today" | "completed")
         }
       >
-        <TabsList>
-          <TabsTrigger value="my">My Tasks</TabsTrigger>
-          {canSeeDept && <TabsTrigger value="dept">Department</TabsTrigger>}
-          {canReviewTasks && (
-            <TabsTrigger value="reviews">
-              Pending Reviews
-              {reviewQueue.length > 0 && (
-                <Badge variant="destructive" className="ml-1.5 text-[10px] h-5 px-1.5">
-                  {reviewQueue.length}
-                </Badge>
+        <TabsList className="h-auto flex-wrap justify-start gap-1 bg-transparent p-0">
+          <TabsTrigger
+            value="my"
+            className="h-8 rounded-full border border-transparent px-3 text-xs data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:shadow-sm"
+          >
+            My Tasks
+          </TabsTrigger>
+          {canSeeDept && (
+            <TabsTrigger
+              value="dept"
+              className="h-8 gap-1.5 rounded-full border border-transparent px-3 text-xs data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:shadow-sm"
+            >
+              Department
+              {departmentTasks.length > 0 && (
+                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+                  {departmentTasks.length}
+                </span>
               )}
             </TabsTrigger>
           )}
-          <TabsTrigger value="reassigned">
+          {canReviewTasks && (
+            <TabsTrigger
+              value="reviews"
+              className="h-8 gap-1.5 rounded-full border border-transparent px-3 text-xs data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:shadow-sm"
+            >
+              Pending Reviews
+              {reviewQueue.length > 0 && (
+                <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-destructive">
+                  {reviewQueue.length}
+                </span>
+              )}
+            </TabsTrigger>
+          )}
+          <TabsTrigger
+            value="reassigned"
+            className="h-8 gap-1.5 rounded-full border border-transparent px-3 text-xs data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:shadow-sm"
+          >
             Re-assigned
             {reassignedMine.length > 0 && (
-              <Badge variant="secondary" className="ml-1.5 text-[10px] h-5 px-1.5">
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
                 {reassignedMine.length}
-              </Badge>
+              </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="today">
+          <TabsTrigger
+            value="today"
+            className="h-8 gap-1.5 rounded-full border border-transparent px-3 text-xs data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:shadow-sm"
+          >
             Due Today
             {dueToday.length > 0 && (
-              <Badge variant="destructive" className="ml-1.5 text-[10px] h-5 px-1.5">
+              <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-destructive">
                 {dueToday.length}
-              </Badge>
+              </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
+          <TabsTrigger
+            value="completed"
+            className="h-8 rounded-full border border-transparent px-3 text-xs data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:shadow-sm"
+          >
+            Completed
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="my" className="mt-4">
           {isLoading ? (
@@ -309,92 +324,80 @@ function ListView({
   onStart?: (t: SupabaseTask) => void;
   currentUserId?: string;
 }) {
+  if (tasks.length === 0) {
+    return (
+      <EmptyState
+        icon={ClipboardList}
+        title="No tasks here"
+        description="Nothing matches this view right now."
+      />
+    );
+  }
+
   return (
-    <Card>
-      <CardContent className="overflow-x-auto p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Task</TableHead>
-              {showAssignee && <TableHead>Assignee</TableHead>}
-              <TableHead>Department</TableHead>
-              <TableHead>Due</TableHead>
-              <TableHead>Priority</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {tasks.map((t) => (
-              <TableRow key={t.id}>
-                <TableCell className="font-medium">
-                  <Link to="/tasks/$id" params={{ id: t.id }} className="hover:underline">
-                    {t.title}
-                  </Link>
-                </TableCell>
-                {showAssignee && (
-                  <TableCell className="text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
-                      {t.assigned_profile && (
-                        <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center text-[8px] font-semibold text-primary">
-                          {t.assigned_profile.initials}
-                        </div>
-                      )}
-                      <span>{t.assigned_profile?.name ?? "—"}</span>
-                    </div>
-                  </TableCell>
+    <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <div className="divide-y divide-border/60">
+        {tasks.map((t) => {
+          const overdue = isOverdue(t.due_date, t.status);
+          const canStart = onStart && currentUserId && t.assigned_to === currentUserId && t.status === "ready";
+          return (
+            <div
+              key={t.id}
+              className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+            >
+              <span
+                className={cn("h-2 w-2 shrink-0 rounded-full", priorityDot(t.priority))}
+                title={`${t.priority} priority`}
+              />
+              <Link to="/tasks/$id" params={{ id: t.id }} className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">{t.title}</p>
+                <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+                  {t.project?.name && <span className="truncate">{t.project.name}</span>}
+                  {t.project?.name && t.department?.name && <span aria-hidden>·</span>}
+                  {t.department?.name && <span className="truncate">{t.department.name}</span>}
+                </p>
+              </Link>
+
+              {showAssignee && (
+                <div className="hidden shrink-0 items-center gap-2 sm:flex">
+                  <EmployeeAvatar profile={t.assigned_profile} size="md" />
+                  <span className="hidden max-w-[9rem] truncate text-xs text-muted-foreground lg:inline">
+                    {t.assigned_profile?.name ?? "Unassigned"}
+                  </span>
+                </div>
+              )}
+
+              <span
+                className={cn(
+                  "hidden shrink-0 text-xs tabular-nums sm:inline",
+                  overdue ? "font-medium text-destructive" : "text-muted-foreground",
                 )}
-                <TableCell className="text-muted-foreground">{t.department?.name ?? "—"}</TableCell>
-                <TableCell>{t.due_date ?? "—"}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant={
-                      t.priority === "high"
-                        ? "destructive"
-                        : t.priority === "medium"
-                          ? "default"
-                          : "secondary"
-                    }
-                  >
-                    {t.priority}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2 justify-end">
-                    {onStart &&
-                      currentUserId &&
-                      t.assigned_to === currentUserId &&
-                      t.status === "ready" && (
-<Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-2 text-xs"
-                      onClick={() => onStart(t)}
-                    >
-                      <Play className="mr-1 h-3 w-3" />
-                      In Progress
-                    </Button>
-                      )}
-                    <Badge variant="outline" className={cn("border", STATUS_STYLES[t.status])}>
-                      {TASK_STATUS_LABELS[t.status]}
-                    </Badge>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {tasks.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={showAssignee ? 6 : 5}
-                  className="py-8 text-center text-sm text-muted-foreground"
+              >
+                {t.due_date ? formatDueDate(t.due_date, t.status) : "No due date"}
+              </span>
+
+              {canStart && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 shrink-0 px-2 text-xs"
+                  onClick={() => onStart(t)}
                 >
-                  No tasks found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+                  <Play className="mr-1 h-3 w-3" aria-hidden />
+                  Start
+                </Button>
+              )}
+
+              <StatusBadge
+                status={t.status}
+                attention={overdue ? "overdue" : null}
+                className="hidden shrink-0 md:inline-flex"
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -410,73 +413,86 @@ function BoardView({
   currentUserId?: string;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       {BOARD_COLUMNS.map((col) => {
-        const config = BOARD_COLUMN_CONFIG[col];
+        const meta = STATUS_META[col];
         const colTasks = tasks.filter((t) => t.status === col);
         return (
-          <div key={col} className={cn("rounded-xl p-3", config.bg)}>
-            <div className="mb-3 flex items-center gap-2 px-1">
-              <div className={cn("h-2.5 w-2.5 rounded-full", config.dot)} />
-              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {config.label}
-              </div>
-              <Badge variant="secondary" className="ml-auto text-[10px]">
+          <div key={col} className="flex flex-col rounded-xl border bg-surface-subtle/60 p-2.5">
+            <div className="mb-2.5 flex items-center gap-2 px-1">
+              <span className={cn("h-2 w-2 rounded-full", meta.dot)} aria-hidden />
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {meta.label}
+              </span>
+              <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
                 {colTasks.length}
-              </Badge>
+              </span>
             </div>
-            <div className="min-h-32 space-y-2">
-              {colTasks.map((t) => (
-                <Link
-                  key={t.id}
-                  to="/tasks/$id"
-                  params={{ id: t.id }}
-                  className="block rounded-lg border border-border/60 bg-card p-3 shadow-sm transition-colors hover:border-primary/50 hover:shadow-md"
-                >
-                  <div className="text-sm font-medium leading-snug">{t.title}</div>
-                  {showAssignee && t.assigned_profile && (
-                    <div className="mt-1.5 flex items-center gap-1.5">
-                      <div className="h-4 w-4 rounded-full bg-primary/10 flex items-center justify-center text-[7px] font-semibold text-primary">
-                        {t.assigned_profile.initials}
-                      </div>
-                      <span className="text-[11px] text-muted-foreground">
-                        {t.assigned_profile.name}
+            <div className="min-h-24 space-y-2">
+              {colTasks.map((t) => {
+                const overdue = isOverdue(t.due_date, t.status);
+                const canStart = onStart && currentUserId && t.assigned_to === currentUserId && t.status === "ready";
+                return (
+                  <Link
+                    key={t.id}
+                    to="/tasks/$id"
+                    params={{ id: t.id }}
+                    className="block rounded-lg border bg-card p-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-primary/40 hover:shadow-md"
+                  >
+                    <div className="flex items-start gap-2">
+                      <span
+                        className={cn("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", priorityDot(t.priority))}
+                        aria-hidden
+                      />
+                      <p className="line-clamp-2 text-[13px] font-medium leading-snug text-foreground">
+                        {t.title}
+                      </p>
+                    </div>
+
+                    {(t.project?.name || t.department?.name) && (
+                      <p className="mt-1.5 truncate pl-3.5 text-[11px] text-muted-foreground">
+                        {t.project?.name ?? t.department?.name}
+                      </p>
+                    )}
+
+                    <div className="mt-2 flex items-center justify-between gap-2 pl-3.5">
+                      {showAssignee && t.assigned_profile ? (
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <EmployeeAvatar profile={t.assigned_profile} size="sm" />
+                          <span className="truncate text-[11px] text-muted-foreground">
+                            {t.assigned_profile.name}
+                          </span>
+                        </span>
+                      ) : (
+                        <span />
+                      )}
+
+                      <span
+                        className={cn(
+                          "text-[11px] tabular-nums",
+                          overdue ? "font-medium text-destructive" : "text-muted-foreground",
+                        )}
+                      >
+                        {t.due_date ? formatDueDate(t.due_date, t.status) : "—"}
                       </span>
                     </div>
-                  )}
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">{t.department?.name}</span>
-                    <Badge
-                      variant={
-                        t.priority === "high"
-                          ? "destructive"
-                          : t.priority === "medium"
-                            ? "default"
-                            : "secondary"
-                      }
-                      className="text-[10px]"
-                    >
-                      {t.priority}
-                    </Badge>
-                  </div>
-                  <div className="mt-1.5 text-[10px] text-muted-foreground">
-                    Due {t.due_date ?? "—"}
-                  </div>
-                  {onStart && currentUserId && t.assigned_to === currentUserId && t.status === "ready" && (
-                    <Button
-                      size="sm"
-                      className="mt-2 w-full"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        onStart(t);
-                      }}
-                    >
-                      <Play className="mr-1 h-3 w-3" />
-                      In Progress
-                    </Button>
-                  )}
-                </Link>
-              ))}
+
+                    {canStart && (
+                      <Button
+                        size="sm"
+                        className="mt-2 h-7 w-full text-xs"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onStart(t);
+                        }}
+                      >
+                        <Play className="mr-1 h-3 w-3" aria-hidden />
+                        Start
+                      </Button>
+                    )}
+                  </Link>
+                );
+              })}
               {colTasks.length === 0 && (
                 <div className="flex items-center justify-center rounded-lg border border-dashed border-border py-8 text-xs text-muted-foreground">
                   No tasks

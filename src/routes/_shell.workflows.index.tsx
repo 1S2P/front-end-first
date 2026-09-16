@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { PageHeader } from "@/components/app-shell";
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,9 @@ import {
   Calendar,
   Activity,
   Repeat,
+  Search,
+  Layers,
+  GitBranch,
 } from "lucide-react";
 import { useState } from "react";
 import { useApp } from "@/lib/app-context";
@@ -49,6 +52,17 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
+type TemplateRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  usage_count: number;
+  department: { id: string; name: string } | null;
+  workflow_steps?: unknown[];
+  workflow_connections?: unknown[];
+};
+
 export const Route = createFileRoute("/_shell/workflows/")({
   head: () => ({
     meta: [
@@ -63,7 +77,8 @@ export const Route = createFileRoute("/_shell/workflows/")({
 function WorkflowLibrary() {
   const { currentBrandId, currentRole, hasPermission } = useApp();
   const [search, setSearch] = useState("");
-  const { data: allWorkflows = [], isLoading } = useWorkflowTemplates(currentBrandId);
+  const { data: templatesData = [], isLoading } = useWorkflowTemplates(currentBrandId);
+  const allWorkflows = templatesData as TemplateRow[];
   const deleteWorkflow = useDeleteWorkflowTemplate();
   const archiveWorkflow = useArchiveWorkflowTemplate();
   const startWorkflow = useStartWorkflow();
@@ -114,14 +129,14 @@ function WorkflowLibrary() {
       )
     : allWorkflows;
 
-  const grouped = filtered.reduce(
+  const grouped = filtered.reduce<Record<string, TemplateRow[]>>(
     (acc, w) => {
-      const deptName = (w as any).department?.name || "Other";
+      const deptName = w.department?.name || "Other";
       if (!acc[deptName]) acc[deptName] = [];
       acc[deptName].push(w);
       return acc;
     },
-    {} as Record<string, typeof allWorkflows>,
+    {} as Record<string, TemplateRow[]>,
   );
 
   const handleDelete = async (id: string, name: string) => {
@@ -209,6 +224,7 @@ function WorkflowLibrary() {
   return (
     <>
       <PageHeader
+        eyebrow="Admin · Library"
         title="Workflow Library"
         description="Reusable templates. Design once, use unlimited times."
         actions={
@@ -221,7 +237,7 @@ function WorkflowLibrary() {
             </Button>
             {canCreate ? (
               <Button asChild>
-                <Link to="/workflows/builder">
+                <Link to="/workflows/builder" search={{ templateId: "" }}>
                   <Plus className="mr-1.5 h-4 w-4" />
                   New Workflow
                 </Link>
@@ -231,11 +247,15 @@ function WorkflowLibrary() {
         }
       />
       <div className="mb-6 max-w-sm">
-        <Input
-          placeholder="Search templates..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search templates..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
       </div>
 
       {isLoading ? (
@@ -258,36 +278,63 @@ function WorkflowLibrary() {
         <div className="space-y-6">
           {Object.entries(grouped).map(([deptName, deptWorkflows]) => (
             <section key={deptName}>
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                <Layers className="h-3.5 w-3.5" />
                 {deptName}
+                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+                  {deptWorkflows.length}
+                </span>
               </h2>
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {deptWorkflows.map((w) => {
-                  const steps = (w as any).workflow_steps ?? [];
-                  const connections = (w as any).workflow_connections ?? [];
+                  const steps = w.workflow_steps ?? [];
+                  const connections = w.workflow_connections ?? [];
+                  const isActive = w.status === "active";
                   return (
                     <Card
                       key={w.id}
-                      className="group transition-colors hover:border-primary/50"
+                      className="group transition-colors hover:border-primary/40 hover:shadow-sm"
                     >
                       <CardContent className="p-5">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="font-medium">{w.name}</div>
-                            <div className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                              {w.description}
-                            </div>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium leading-snug">{w.name}</div>
+                            {w.description ? (
+                              <div className="mt-1 text-xs leading-relaxed text-muted-foreground line-clamp-2">
+                                {w.description}
+                              </div>
+                            ) : (
+                              <div className="mt-1 text-xs italic text-muted-foreground/60">
+                                No description
+                              </div>
+                            )}
                           </div>
-                          <Badge variant={w.status === "active" ? "default" : "secondary"}>
-                            {w.status}
+                          <Badge
+                            variant={isActive ? "default" : "secondary"}
+                            className="shrink-0 text-[10px]"
+                          >
+                            {isActive ? "Active" : "Archived"}
                           </Badge>
                         </div>
                         <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
-                          <span>{steps.length} steps</span>
-                          <span>·</span>
-                          <span>
-                            Used {w.usage_count} times
+                          <span className="inline-flex items-center gap-1">
+                            <Workflow className="h-3.5 w-3.5" />
+                            {steps.length} {steps.length === 1 ? "step" : "steps"}
                           </span>
+                          <span className="text-border">·</span>
+                          <span className="inline-flex items-center gap-1">
+                            <Repeat className="h-3.5 w-3.5" />
+                            Used {w.usage_count} {w.usage_count === 1 ? "time" : "times"}
+                          </span>
+                          {connections.length > 0 && (
+                            <>
+                              <span className="text-border">·</span>
+                              <span className="inline-flex items-center gap-1">
+                                <GitBranch className="h-3.5 w-3.5" />
+                                {connections.length} gate{connections.length === 1 ? "" : "s"}
+                              </span>
+                            </>
+                          )}
                         </div>
                         <div className="mt-4 flex flex-wrap gap-1.5">
                           {canManage && (
@@ -296,7 +343,7 @@ function WorkflowLibrary() {
                                 <Button
                                   variant="default"
                                   size="sm"
-                                  disabled={w.status !== "active" || startWorkflow.isPending}
+                                  disabled={!isActive || startWorkflow.isPending}
                                   onClick={() => {
                                     setSelectedProjectId("");
                                     setStartDate("");
@@ -340,7 +387,7 @@ function WorkflowLibrary() {
                                   onClick={() => handleArchive(w.id, w.name, w.status)}
                                 >
                                   <Archive className="mr-1 h-3.5 w-3.5" />
-                                  {w.status === "active" ? "Archive" : "Unarchive"}
+                                  {isActive ? "Archive" : "Unarchive"}
                                 </Button>
                               )}
                               {canDelete && (

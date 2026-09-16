@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Activity, ArrowRight, Clock } from "lucide-react";
-import { PageHeader } from "@/components/app-shell";
+import { Activity, ArrowRight } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { EmployeeAvatar } from "@/components/employee-avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -61,6 +61,7 @@ function WorkflowStatusBoard() {
   return (
     <>
       <PageHeader
+        eyebrow="Admin · Status"
         title="Where's it at?"
         description="Every running workflow, the step it's on, and who currently holds it."
       />
@@ -107,7 +108,7 @@ function WorkflowStatusBoard() {
                 ))}
               </SelectContent>
             </Select>
-            <Badge variant="outline" className="ml-auto">
+            <Badge variant="outline" className="ml-auto tabular-nums">
               {filtered.length} running{overdueCount > 0 ? ` · ${overdueCount} stuck` : ""}
             </Badge>
           </div>
@@ -127,34 +128,57 @@ function WorkflowStatusBoard() {
                         <p className="truncate text-xs text-muted-foreground">{r.project_name}</p>
                       </div>
                       {r.is_overdue ? (
-                        <Badge variant="destructive">Stuck</Badge>
+                        <Badge variant="destructive" className="shrink-0 text-[10px]">
+                          Stuck
+                        </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-green-700 dark:text-green-400">
+                        <Badge
+                          variant="outline"
+                          className="shrink-0 text-[10px] text-success"
+                        >
                           On track
                         </Badge>
                       )}
                     </div>
 
-                    <div className="mt-3 text-xs text-muted-foreground">
-                      Step {r.step_order + 1} of {r.total_steps} —{" "}
-                      <span className="text-foreground">
-                        {r.current_step_name ?? "Current step"}
-                      </span>
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          Step {r.step_order + 1} of {r.total_steps} —{" "}
+                          <span className="text-foreground">
+                            {r.current_step_name ?? "Current step"}
+                          </span>
+                        </span>
+                        <span className="tabular-nums">
+                          {formatHeldTime(r.hours_in_step)}
+                        </span>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            r.is_overdue ? "bg-destructive" : "bg-primary",
+                          )}
+                          style={{
+                            width: `${Math.max(
+                              4,
+                              Math.round(((r.step_order + 1) / r.total_steps) * 100),
+                            )}%`,
+                          }}
+                        />
+                      </div>
                     </div>
 
-                    <div className="mt-2 flex items-center gap-1.5 text-xs">
-                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="font-medium">{formatHeldTime(r.hours_in_step)}</span>
-                      <span className="text-muted-foreground">in this step</span>
-                    </div>
-
-                    <div className="mt-4 flex items-center gap-2 border-t pt-3">
-                      <Avatar className="h-7 w-7">
-                        <AvatarFallback className={cn("text-xs", r.assignee_avatar_color)}>
-                          {r.assignee_initials ?? "?"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="truncate text-sm">{r.assignee_name ?? "Unassigned"}</span>
+                    <div className="mt-4 flex items-center gap-2 text-sm">
+                      <EmployeeAvatar
+                        profile={{
+                          name: r.assignee_name,
+                          initials: r.assignee_initials,
+                          avatar_color: r.assignee_avatar_color,
+                        }}
+                        size="md"
+                      />
+                      <span className="truncate">{r.assignee_name ?? "Unassigned"}</span>
                       {r.department_name && (
                         <Badge variant="secondary" className="ml-auto">
                           {r.department_name}
