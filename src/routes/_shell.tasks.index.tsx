@@ -128,7 +128,7 @@ function MyTasks() {
       case "reviews":
         return "Pending Reviews";
       case "dept":
-        return `${dept?.name || "Department"} Tasks`;
+        return isAdmin ? "All Departments" : `${dept?.name || "Department"} Tasks`;
       case "reassigned":
         return "Re-assigned Tasks";
       case "today":
@@ -145,7 +145,9 @@ function MyTasks() {
       case "reviews":
         return "Tasks waiting for your review.";
       case "dept":
-        return `All tasks in ${dept?.name || "your department"}.`;
+        return isAdmin
+          ? "All tasks across every department."
+          : `All tasks in ${dept?.name || "your department"}.`;
       case "reassigned":
         return "Tasks sent back by reviewers for rework.";
       case "today":
