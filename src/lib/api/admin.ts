@@ -98,15 +98,15 @@ export function useDepartments(brandId?: string) {
         if (bdErr) throw bdErr;
 
         const deptIds = brandDepts.map((bd) => bd.department_id);
-        if (deptIds.length === 0) return [];
-
-        const { data, error } = await supabase
-          .from("departments")
-          .select("*")
-          .in("id", deptIds)
-          .order("name");
-        if (error) throw error;
-        return data;
+        if (deptIds.length > 0) {
+          const { data, error } = await supabase
+            .from("departments")
+            .select("*")
+            .in("id", deptIds)
+            .order("name");
+          if (error) throw error;
+          if (data && data.length > 0) return data;
+        }
       }
 
       const { data, error } = await supabase
@@ -163,15 +163,15 @@ export function useProfiles(brandId?: string) {
         if (bpErr) throw bpErr;
 
         const profileIds = brandProfiles.map((bp) => bp.profile_id);
-        if (profileIds.length === 0) return [];
-
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*, departments(id, name), profile_brands(brand_id)")
-          .in("id", profileIds)
-          .order("name");
-        if (error) throw error;
-        return data;
+        if (profileIds.length > 0) {
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("*, departments(id, name), profile_brands(brand_id)")
+            .in("id", profileIds)
+            .order("name");
+          if (error) throw error;
+          if (data && data.length > 0) return data;
+        }
       }
 
       const { data, error } = await supabase
